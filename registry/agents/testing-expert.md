@@ -109,17 +109,19 @@ Append only net-new tests. Format:
 
 ### Step 7: Report completion status to the caller
 
-Return exactly one status line as the final line of your response so `/awos:implement` can parse it with a single grep:
+Return exactly one status token as the final non-whitespace content of your response, wrapped in `[[ ]]` sentinel brackets so it survives any platform metadata that gets appended after the agent's text. The double-bracket envelope is what `/awos:implement` (and downstream parsers like `/awos:verify`) grep for — they extract whatever sits between the matching `[[STATUS:` and `]]`:
 
-- **All tests pass, no gaps:** `STATUS: COMPLETE` — the caller marks this task `[x]`.
-- **Gap found in Step 5:** `STATUS: BLOCKED — gap reported in tasks.md` — the caller leaves this task `[ ]`; `/awos:verify` will later escalate the GAP marker into a refactoring-slice item.
-- **Stack not declared (Step 1 failure):** `STATUS: BLOCKED — testing stack not declared in context/product/architecture.md` — the caller leaves this task `[ ]`.
+- **All tests pass, no gaps:** `[[STATUS: COMPLETE]]` — the caller marks this task `[x]`.
+- **Gap found in Step 5:** `[[STATUS: BLOCKED — gap reported in tasks.md]]` — the caller leaves this task `[ ]`; `/awos:verify` will later escalate the GAP marker into a refactoring-slice item.
+- **Stack not declared (Step 1 failure):** `[[STATUS: BLOCKED — testing stack not declared in context/product/architecture.md]]` — the caller leaves this task `[ ]`.
 
-When the E2E layer is present in the feature, also include one advisory line above the STATUS token:
+The sentinel matters: sub-agent invocations on the Claude Code platform have resumption metadata (`agentId: …`, `<usage>…</usage>`) appended directly to the agent's terminal output without a separating newline. A bare `STATUS: COMPLETE` line ends up concatenated as `STATUS: COMPLETEagentId: …`, which breaks every parser downstream. The `[[ ]]` envelope makes the token unambiguously delimited regardless of what comes after.
+
+When the E2E layer is present in the feature, also include one advisory line immediately above the STATUS token:
 
 ```text
 NOTE: ensure docs/screenshots/ is git-ignored (one-time project setup).
-STATUS: COMPLETE
+[[STATUS: COMPLETE]]
 ```
 
 ---
