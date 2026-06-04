@@ -13,12 +13,14 @@ from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetad
 
 # Top-level entries permitted inside a skill directory. Kept in lockstep with
 # what the /bundle/skills endpoint actually ships: SKILL.md (file) and the flat
-# files under references/ (directory). README.md is allowed as local docs even
-# though it's not bundled. Type is enforced alongside name — e.g. a file named
-# "references" or a directory named "SKILL.md" is still rejected, since the
-# bundler would drop them for the same reason as any other stray entry.
+# files under references/ or scripts/ (directories). README.md is allowed as
+# local docs even though it's not bundled. Type is enforced alongside name —
+# e.g. a file named "references" or a directory named "SKILL.md" is still
+# rejected, since the bundler would drop them for the same reason as any other
+# stray entry. The scripts/ directory only allows .js, .ts, .py files.
 _ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
-_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references"})
+_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references", "scripts"})
+_ALLOWED_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".js", ".ts", ".py"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,7 +170,7 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                             message=(
                                 f"Unexpected file '{child.name}' in skill — "
                                 "the install bundle only ships SKILL.md and "
-                                "flat files under references/"
+                                "flat files under references/ or scripts/"
                             ),
                         )
                     )
@@ -203,22 +205,38 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                 )
                 continue
 
-            # Allowed dir (references/) — the bundler walks it with iterdir()
-            # and only adds is_file() entries, so anything non-file is dropped.
+            # Allowed dir — the bundler walks it with iterdir() and only
+            # adds is_file() entries, so anything non-file is dropped.
             for ref_child in sorted(child.iterdir()):
-                if ref_child.name.startswith(".") or ref_child.is_file():
+                if ref_child.name.startswith("."):
                     continue
-                errors.append(
-                    ValidationError(
-                        file=relative_path,
-                        field=None,
-                        message=(
-                            f"Nested entry '{child.name}/{ref_child.name}' "
-                            "is not a flat file — the install bundle only "
-                            "ships flat files under references/"
-                        ),
+                if not ref_child.is_file():
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"Nested entry '{child.name}/{ref_child.name}' "
+                                f"is not a flat file — only flat files are "
+                                f"allowed under {child.name}/"
+                            ),
+                        )
                     )
-                )
+                    continue
+                # scripts/ only allows .js, .ts, .py files.
+                if child.name == "scripts":
+                    if ref_child.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
+                        errors.append(
+                            ValidationError(
+                                file=relative_path,
+                                field=None,
+                                message=(
+                                    f"File '{child.name}/{ref_child.name}' has "
+                                    f"disallowed extension — scripts/ only "
+                                    f"allows {', '.join(sorted(_ALLOWED_SCRIPT_EXTENSIONS))}"
+                                ),
+                            )
+                        )
 
         results.append(
             ValidationResult(
