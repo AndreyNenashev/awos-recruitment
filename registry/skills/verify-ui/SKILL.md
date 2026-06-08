@@ -29,14 +29,7 @@ it happens all the time, please do not waste tokens on that
 ## Step 2: Navigate to the feature
 - Use page.locator('selector').click() for all interactions
 - Never take page snapshots
-- Never use ref targets
-here what happens when you try to get page snapshot by ref:
-```console
-⏺ playwright - Page snapshot (MCP)(target: "[ref=e31]", depth: 6)
-  ⎿  Error: ### Error
-     Error: "[ref=e31]" does not match any elements.
-```
-it happens all the time, please do not waste tokens on that
+- Never use ref targets (see Step 1)
 
 ## Step 3: Load and run verification scripts
 For EVERY measurement, follow this exact sequence:
@@ -83,7 +76,7 @@ instead of writing custom discovery code each time.
 1. Read: `Read .claude/skills/verify-ui/scripts/check-inventory.js`
 2. Inject into page
 3. Call: `page.evaluate(() => checkInventory({
-     scope: '[data-radix-popper-content-wrapper]',
+     scope: '[data-example]', // e.g.: [data-popover-content], [data-radix-popper-content-wrapper], [role="dialog"]
      include: ['button', '[role="option"]', '[role="radio"]', '[role="group"]']
    }))`
 4. Inspect `summary` for counts, `sections` for labeled groups, `scrollState` for scroll info,
@@ -151,7 +144,7 @@ Use custom skill ONLY when you tried to utilize scripts provided above and you s
 - Only use page snapshot when you genuinely don't know what's on the page
   (e.g., investigating an unknown bug with no code context).
 - When you need to inspect a specific area of the page, use page.locator('css-selector').evaluate()
-- NEVER use ref targets for playwright, neither for snapshots nor for clicks
+- NEVER use ref targets for Playwright, neither for snapshots nor for clicks
 
 ## browser_snapshot rules
   - The `target` parameter MUST be a CSS selector or role query, NEVER a [ref=...] value
@@ -161,6 +154,6 @@ Use custom skill ONLY when you tried to utilize scripts provided above and you s
 
 ## What skill does not do
 - Skill does not verify visual appearance (colors, fonts, spacing and contrast aesthetics), it verifies only if the feature elements behave as it planned by spec and codebase
-- Skill does not test cross-browser behavior and uses only playwright chromium browser
+- Skill does not test cross-browser behavior and uses only Playwright Chromium browser
 - Skill does not verify accessibility features use different skill for that
 - Skill avoids using screenshots and fallbacks to them only in case of low confidence after usage of tools
