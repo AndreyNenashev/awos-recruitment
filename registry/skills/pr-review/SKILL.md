@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's GitHub PR and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, with no GitHub or network calls. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges or emojis, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
+description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's GitHub PR and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges or emojis, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
 ---
 
 # Author a Code Review
@@ -12,7 +12,7 @@ Produce a code review that reads like a sharp human wrote it and opens a convers
 Decide the mode before starting the workflow, and state it in one line — the workflow branches on it.
 
 - **public** (default): review a PR **someone else authored** on GitHub. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses [references/github.md](references/github.md).
-- **local**: review **your own working branch** for yourself. No GitHub, no network — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
+- **local**: review **your own working branch** for yourself. Nothing is posted or published — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
 
 **Choosing:** if the request clearly signals local (the trigger words above, or a bare branch with no PR), use local. If it clearly targets a specific remote PR (a PR URL or `owner/repo#N`), use public. If it's ambiguous, ask with `AskUserQuestion`, offering Public as the default.
 
@@ -67,7 +67,7 @@ No severity badges, no emojis, plain citations. Order by what matters, explained
 Print the complete draft — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed:
 
 - **Proceed** — deliver as-is (post the draft review, or write the file).
-- **Back findings with external sources** — before delivering, run the evidence pass: for each contestable finding, verify against a trusted source (official docs, the language/library spec, a high-signal StackOverflow or GitHub issue), attach the link in the comment, and **drop findings you can't substantiate**. Re-present, then deliver. (Needs web access; if unavailable, say so and offer to proceed without it.)
+- **Back findings with external sources** — before delivering, run the evidence pass: for each contestable finding, verify against a trusted source (official docs, the language/library spec, a high-signal StackOverflow or GitHub issue), attach the link in the comment, and **drop findings you can't substantiate**. Then re-present the revised draft and return to this gate — don't deliver until the user picks Proceed.
 - **Change something** — take the user's edits (reword, drop, split a point into its own inline comment, re-anchor), restate, and confirm.
 
 Respect the user's granularity choices — don't fold a distinct observation into the summary if they want it inline, and don't merge separate points. Post or write nothing before the user picks Proceed.

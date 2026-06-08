@@ -1,6 +1,6 @@
 ---
 name: pr-comments-address
-description: Use when working through code-review feedback to apply fixes and replies — "address the PR comments", "reply to CodeRabbit/Codex feedback", "resolve these review threads", "apply this review". Works in two modes. Public mode (default) responds to reviewer feedback on a GitHub pull request you authored — fix, reply, resolve, commit, and push. Local mode — triggered when the request says "locally", "for myself", "apply this review", or "don't post" — applies feedback from a local review file to your working tree, with no GitHub or network calls. Each item gets a proposed fix or reply for your approval first. This is the author's side; to review someone else's PR, use pr-review.
+description: Use when working through code-review feedback to apply fixes and replies — "address the PR comments", "reply to CodeRabbit/Codex feedback", "resolve these review threads", "apply this review". Works in two modes. Public mode (default) responds to reviewer feedback on a GitHub pull request you authored — fix, reply, resolve, commit, and push. Local mode — triggered when the request says "locally", "for myself", "apply this review", or "don't post" — applies feedback from a local review file to your working tree, posting nothing to a review platform. Each item gets a proposed fix or reply for your approval first. This is the author's side; to review someone else's PR, use pr-review.
 ---
 
 # Address Review Comments
@@ -56,7 +56,7 @@ Draft a concrete response for every item — the actual reply text and, for a `f
 Present the plan, numbered and scannable (category, `path:line`, author, the proposed fix and reply text). Then ask the user with `AskUserQuestion` how to proceed:
 
 - **Proceed** — apply the plan as-is.
-- **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue), cite it in the fix/reply, and drop or downgrade items that don't hold up. Re-present, then apply. (Needs web access; if unavailable, say so and offer to proceed without it.)
+- **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue), cite it in the fix/reply, and drop or downgrade items that don't hold up. Then re-present the revised plan and return to this gate — don't apply until the user picks Proceed.
 - **Change something** — take the user's edits (apply some, skip others, reword a reply), restate, and confirm.
 
 Apply, reply, or resolve nothing before the user picks Proceed.
@@ -82,6 +82,6 @@ Report fixes (with commit hashes), replies and their state (public), recorded pu
 - Never edit code, post a reply, or resolve a thread the user hasn't approved at the results gate.
 - Never resolve a `fix`, `pushback`, or `clarify` thread — only `dismiss-resolve` (public).
 - In public mode: never push to a branch other than the PR's head branch; never `--amend`, `--force`, or `--no-verify` unless asked.
-- In local mode: stay on the working tree, never reach the network or contact a review platform, and never push — surfacing changes to a remote is the user's call.
+- In local mode: stay on the working tree, never post to or contact a review platform, and never push — surfacing changes to a remote is the user's call.
 - No performative replies ("Great catch!", "You're absolutely right!"). State the technical fact or the next step.
 - If the user asks to address one item and leave the rest, do exactly that.
