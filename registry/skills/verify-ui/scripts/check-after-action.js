@@ -35,19 +35,17 @@ async function collectAfterAction() {
     return rect.width > 0 && rect.height > 0;
   }
 
-  function findTarget(selector, text) {
-    if (!text) return scopeEl.querySelector(selector);
-    const all = scopeEl.querySelectorAll(selector);
-    for (const el of all) {
-      if (el.textContent.includes(text)) return el;
-    }
-    return null;
+  function findTargets(selector, text) {
+    const all = [...scopeEl.querySelectorAll(selector)];
+    if (!text) return all;
+    return all.filter((el) => (el.textContent || "").includes(text));
   }
 
   function checkEntry(entry) {
     const wantVisible = entry.visible !== false;
-    const el = findTarget(entry.selector, entry.text);
-    return (el ? isVisible(el) : false) === wantVisible;
+    const matches = findTargets(entry.selector, entry.text);
+    const anyVisible = matches.some((el) => isVisible(el));
+    return wantVisible ? anyVisible : !anyVisible;
   }
 
   // Poll until expected state or timeout
@@ -64,15 +62,15 @@ async function collectAfterAction() {
 
   const results = expect.map((entry) => {
     const wantVisible = entry.visible !== false;
-    const el = findTarget(entry.selector, entry.text);
-    const actualVisible = el ? isVisible(el) : false;
+    const matches = findTargets(entry.selector, entry.text);
+    const actualVisible = matches.some((el) => isVisible(el));
     const pass = actualVisible === wantVisible;
 
     const result = {
       selector: entry.selector,
       pass,
       expected: wantVisible ? "visible" : "hidden",
-      actual: actualVisible ? "visible" : el ? "hidden" : "not found",
+      actual: actualVisible ? "visible" : matches.length ? "hidden" : "not found",
     };
 
     if (entry.text) result.text = entry.text;
@@ -84,7 +82,7 @@ async function collectAfterAction() {
           : "element is visible"
         : entry.text
           ? `no visible element contains "${entry.text}"`
-          : el
+          : matches.length
             ? "element is hidden"
             : "element not found";
     } else {

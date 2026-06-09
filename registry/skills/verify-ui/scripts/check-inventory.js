@@ -135,9 +135,10 @@ function checkInventory({ scope, include, exclude, maxDepth } = {}) {
 
   function buildSelector(el) {
     if (el.id) return `#${el.id}`;
-    const testId =
-      el.getAttribute("data-testid") || el.getAttribute("data-test-id");
-    if (testId) return `[data-testid="${testId}"]`;
+    const dataTestId = el.getAttribute("data-testid");
+    if (dataTestId) return `[data-testid="${dataTestId}"]`;
+    const dataTestIdAlt = el.getAttribute("data-test-id");
+    if (dataTestIdAlt) return `[data-test-id="${dataTestIdAlt}"]`;
     const tag = el.tagName.toLowerCase();
     const role = el.getAttribute("role");
     const text = (el.textContent || "").trim().substring(0, 30);

@@ -207,8 +207,30 @@ function checkOverflow({ scope, checkFooter, checkInteractive, margin } = {}) {
       if (rect.width === 0 || rect.height === 0) continue;
 
       const elCs = getComputedStyle(el);
-      if (elCs.display === "none" || elCs.visibility === "hidden" || elCs.opacity === "0")
+      if (elCs.display === "none" || elCs.visibility === "hidden" || elCs.opacity === "0") {
+        unreachableList.push({
+          selector: buildSelector(el),
+          text: (el.textContent || "").trim().substring(0, 50),
+          role: el.getAttribute("role") || el.tagName.toLowerCase(),
+          reason: "invisible",
+          reachable: false,
+        });
         continue;
+      }
+      if (
+        elCs.pointerEvents === "none" ||
+        el.disabled === true ||
+        el.getAttribute("aria-disabled") === "true"
+      ) {
+        unreachableList.push({
+          selector: buildSelector(el),
+          text: (el.textContent || "").trim().substring(0, 50),
+          role: el.getAttribute("role") || el.tagName.toLowerCase(),
+          reason: "not interactive",
+          reachable: false,
+        });
+        continue;
+      }
 
       const issue = testReachability(el, rect);
       if (issue) {
@@ -261,7 +283,7 @@ function checkOverflow({ scope, checkFooter, checkInteractive, margin } = {}) {
 
     const topEl = document.elementFromPoint(cx, cy);
     if (!topEl) return { reason: "elementFromPoint returned null", reachable: false };
-    if (el === topEl || el.contains(topEl) || topEl.closest(buildSelector(el)))
+    if (el === topEl || el.contains(topEl))
       return null; // reachable
 
     const tag = topEl.tagName.toLowerCase();

@@ -1,5 +1,5 @@
 // check-alignment.js
-// Detects layout behaviour (row, column, line, v-line, grid) and verifies alignment.
+// Detects layout behavior (row, column, line, v-line, grid) and verifies alignment.
 //
 // Usage with Playwright MCP browser_evaluate:
 //   1. Load the function into the page:
@@ -182,7 +182,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
   if (elements.length === 1) {
     return {
       count: 1,
-      behaviour: "single",
+      behavior: "single",
       alignment: [],
       lines: [{ elements: [describeElement(0)], gaps: { uniform: true, values: [] } }],
       gaps: { uniform: true, values: [] },
@@ -210,7 +210,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
     if (allEqual(idx.map((i) => rects[i].height))) alignment.push("equal-height");
 
     return {
-      behaviour: "row",
+      behavior: "row",
       alignment,
       lines: [{ elements: sorted.map(describeElement), gaps }],
       gaps,
@@ -233,7 +233,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
     if (allEqual(idx.map((i) => rects[i].height))) alignment.push("equal-height");
 
     return {
-      behaviour: "column",
+      behavior: "column",
       alignment,
       lines: [{ elements: sorted.map(describeElement), gaps }],
       gaps,
@@ -288,7 +288,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       if (allEqual(idx.map((i) => rects[i].width))) alignment.push("equal-width");
 
       return {
-        behaviour: "line",
+        behavior: "line",
         alignment,
         lines: rows.map((row) => ({
           elements: row.map(describeElement),
@@ -348,7 +348,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       if (allEqual(idx.map((i) => rects[i].height))) alignment.push("equal-height");
 
       return {
-        behaviour: "v-line",
+        behavior: "v-line",
         alignment,
         lines: cols.map((col) => ({
           elements: col.map(describeElement),
@@ -386,7 +386,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       const alignment = [edgeLabel(edge)];
 
       return {
-        behaviour: "grid",
+        behavior: "grid",
         alignment,
         lines: rows.map((row) => ({
           elements: row.map(describeElement),
@@ -414,7 +414,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
 
   return {
     count: elements.length,
-    behaviour: "unknown",
+    behavior: "unknown",
     alignment: [],
     lines: [],
     gaps: { uniform: false, values: [] },
