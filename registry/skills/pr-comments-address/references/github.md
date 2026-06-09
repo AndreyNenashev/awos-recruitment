@@ -2,16 +2,6 @@
 
 > **Part of:** [pr-comments-address](../SKILL.md). The GitHub commands for the receiving workflow in **public mode**, keyed by operation name. Local mode never runs any of these — it stays on the working tree and never invokes `gh` or posts to the platform. Keying by operation name keeps the SKILL workflow platform-agnostic, so similar reference files could be added for other review platforms (GitLab, Azure DevOps, …) and selected by the PR URL host if that's ever needed.
 
-## Contents
-
-- [preflight](#preflight)
-- [checkout-pr](#checkout-pr)
-- [fetch-working-set](#fetch-working-set)
-- [reply-to-thread](#reply-to-thread)
-- [reply-to-top-level](#reply-to-top-level)
-- [resolve-thread](#resolve-thread)
-- [Failure modes](#failure-modes)
-
 ## preflight
 
 ```sh
@@ -56,7 +46,7 @@ gh api graphql -F owner=<OWNER> -F repo=<REPO> -F n=<NUM> -f query='
 
 Build the working set:
 
-- **Review threads** where `isResolved == false` and the latest comment author is not `$ME`. Outdated threads count too — they still need a reply or resolution.
+- **Review threads:** any thread whose latest comment author is not `$ME` — **don't filter on `isResolved` alone.** A resolved thread can mean "fixed" or just "someone replied and closed it without a code change"; the latter still needs handling. Keep the unresolved threads, and also surface resolved threads whose last word isn't yours for a quick judgment — keep the ones you never actually acted on, drop the genuinely handled. Outdated threads count too — they still need a reply or resolution.
 - **Top-level comments** where the latest author in the conversation is not `$ME` and `$ME` hasn't already replied below. GitHub doesn't thread these; group by author block and consecutive timestamps.
 
 `<THREAD_NODE_ID>` for `resolve-thread` is the thread `id`. `<COMMENT_DB_ID>` for `reply-to-thread` is the `databaseId` of the thread's **first** comment.
@@ -89,4 +79,4 @@ gh api graphql -F id=<THREAD_NODE_ID> -f query='
 | `gh pr checkout` → "checkout would overwrite local changes" | Stop, surface the conflict, let the user decide. |
 | `resolveReviewThread` → "thread already resolved" | Fine, continue. |
 | Reply API → 422 "review thread not found" | The comment was deleted upstream; skip and note it in the summary. |
-| `git push` rejected (non-fast-forward) | Fetch, rebase, ask before re-pushing. Never force-push. |
+| `git push` rejected (non-fast-forward) | Fetch and integrate (rebase or merge, per the project's convention), ask before re-pushing. Never force-push. |
