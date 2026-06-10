@@ -25,6 +25,7 @@ from awos_recruitment_mcp.registry import (
     resolve_skill_paths,
 )
 from awos_recruitment_mcp.search_index import build_index
+from awos_recruitment_mcp.validate import _ALLOWED_SCRIPT_EXTENSIONS
 
 config = Config.from_env()
 
@@ -72,7 +73,7 @@ async def bundle_skills(request: Request) -> Response:
     Expects a JSON body matching :class:`BundleRequest`.  Resolves each
     requested skill name to its on-disk directory, then streams back a
     gzip-compressed tar archive containing ``<name>/SKILL.md`` and any
-    ``<name>/references/*.md`` files found for each skill.
+    ``<name>/references/*`` or ``<name>/scripts/*`` files found for each skill.
 
     Returns 400 with a JSON error body when the request fails validation.
     """
@@ -102,13 +103,20 @@ async def bundle_skills(request: Request) -> Response:
             if skill_md.is_file():
                 tar.add(str(skill_md), arcname=f"{skill_name}/SKILL.md")
 
-            references_dir = skill_dir / "references"
-            if references_dir.is_dir():
-                for ref_file in sorted(references_dir.iterdir()):
-                    if ref_file.is_file():
+            for subdir_name in ("references", "scripts"):
+                subdir = skill_dir / subdir_name
+                if subdir.is_dir():
+                    for sub_file in sorted(subdir.iterdir()):
+                        if not sub_file.is_file() or sub_file.name.startswith("."):
+                            continue
+                        if (
+                            subdir_name == "scripts"
+                            and sub_file.suffix not in _ALLOWED_SCRIPT_EXTENSIONS
+                        ):
+                            continue
                         tar.add(
-                            str(ref_file),
-                            arcname=f"{skill_name}/references/{ref_file.name}",
+                            str(sub_file),
+                            arcname=f"{skill_name}/{subdir_name}/{sub_file.name}",
                         )
 
     return Response(content=buf.getvalue(), media_type="application/gzip")
