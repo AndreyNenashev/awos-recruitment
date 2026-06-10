@@ -32,6 +32,7 @@ Review voice and formatting rules are in [references/house-style.md](references/
 ## Workflow
 
 ```
+- [ ] 0. Bias gate: flag a contaminated session before reviewing
 - [ ] 1. Gather the change and context
 - [ ] 2. Find issues (code-review + applicable pr-review-toolkit agents)
 - [ ] 3. Reconcile (public: against existing comments; local: skip)
@@ -40,6 +41,24 @@ Review voice and formatting rules are in [references/house-style.md](references/
 - [ ] 6. Deliver (public: draft review; local: review file)
 - [ ] 7. Summarize; loop on re-review (public)
 ```
+
+### 0. Bias gate
+
+A review is worth only as much as its independence. Before anything else, inspect **this conversation** for contamination — evidence you'd be reviewing work you helped shape:
+
+- you wrote, edited, or fixed any of the code under review in this session;
+- you designed, planned, or debated the change here, or addressed review feedback on it;
+- you already drafted, summarized, or argued a position on this change — your judgment is anchored to it.
+
+If any apply, stop and say which one, then ask with `AskUserQuestion`:
+
+- **Fresh session** (recommended) — you can't open one yourself, so hand off: end the turn by printing the exact invocation to carry over (`/pr-review <args>`, plus any constraints from this conversation worth keeping) and tell the user to run it after `/clear` or in a new session. Don't try to simulate it with a headless `claude -p` call — that runs without the interactive gates this skill depends on.
+- **Proceed** — run the workflow normally, in-session knowledge and all. The user may have run the review here deliberately because the conversation led to it; respect that.
+- **Proceed, quarantine session knowledge** — run the workflow but treat your in-session knowledge as untrusted: re-derive findings from the diff and the engines' output, not from what you remember intending, and carry a one-line independence caveat into the step 7 summary (never into the posted review).
+
+A clean conversation — or one whose only relation to the change is this review — passes silently; don't ask.
+
+A long session of unrelated work isn't bias, but it competes for attention; if context is already strained, recommend the fresh session for that reason instead.
 
 ### 1. Gather the change and context
 

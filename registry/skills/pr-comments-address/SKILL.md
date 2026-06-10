@@ -27,6 +27,7 @@ Treat automated reviewers (CodeRabbit, Codex, Bito, Sonar, and similar) as sugge
 ## Workflow
 
 ```
+- [ ] 0. Bias gate: flag a contaminated session before triaging
 - [ ] 1. Gather feedback items
 - [ ] 2. Read context and draft a response per item
 - [ ] 3. Results gate: present the plan and ask — back with sources / proceed / change
@@ -34,6 +35,21 @@ Treat automated reviewers (CodeRabbit, Codex, Bito, Sonar, and similar) as sugge
 - [ ] 5. Commit (public: + push)
 - [ ] 6. Summary
 ```
+
+### 0. Bias gate
+
+Knowing the work is the author's job; defending it is not. The dangerous step here is triage — classifying an item as `fix` vs `pushback` — and a session that wrote the code under feedback is anchored to its own decisions. Before anything else, inspect **this conversation** for that contamination:
+
+- this session wrote, edited, or designed the code the feedback targets;
+- this session already debated these review points (e.g. it argued for the approach a reviewer now questions).
+
+If either applies, stop and say which one, then ask with `AskUserQuestion`:
+
+- **Fresh session** (recommended) — you can't open one yourself, so hand off: end the turn by printing the exact invocation to carry over (`/pr-comments-address <args>`, plus any constraints from this conversation worth keeping) and tell the user to run it after `/clear` or in a new session. Don't try to simulate it with a headless `claude -p` call — that runs without the interactive gates this skill depends on.
+- **Proceed** — run the workflow normally, in-session knowledge and all. Addressing feedback right from the session that pushed the PR is a common, deliberate flow; respect it.
+- **Proceed, quarantine session knowledge** — triage each item from the code and the reviewer's argument as they stand, not from what you remember intending; before classifying anything `pushback`, restate the reviewer's point in its strongest form and check it against the code. Note the caveat in the step 6 summary (never in posted replies).
+
+A clean conversation — or one whose only relation to the PR is this skill's own prior rounds — passes silently; don't ask.
 
 ### 1. Gather feedback items
 
