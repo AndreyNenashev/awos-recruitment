@@ -304,7 +304,7 @@ Swift Testing uses the struct/class lifecycle — no `setUp`/`tearDown` methods.
 @Test func notificationPostedOnSave() async throws {
     let store = DocumentStore()
 
-    await confirmation("Document saved notification") { confirm in
+    try await confirmation("Document saved notification") { confirm in
         NotificationCenter.default.addObserver(
             forName: .documentDidSave, object: nil, queue: nil
         ) { _ in

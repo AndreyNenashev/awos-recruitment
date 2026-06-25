@@ -807,9 +807,10 @@ struct PresentationApp: App {
 
 ```swift
 @Observable
-// NOTE: UIScreen.screens, UIScreen.didConnectNotification, and UIScreen.didDisconnectNotification
-// are deprecated since iOS 16. Use UIScene-based detection instead (see Scene-based section below).
-// This legacy pattern is shown only for apps targeting iOS 15 and earlier.
+// NOTE: This is the canonical iOS 16+ approach using UIScene-based detection.
+// The older UIScreen.screens / UIScreen.didConnectNotification / UIScreen.didDisconnectNotification
+// APIs are deprecated since iOS 16 — Apple's deprecation notice points to
+// UIScene.willConnectNotification (used below) as the replacement.
 class ExternalDisplayManager {
     var externalWindow: UIWindow?
 

@@ -83,7 +83,10 @@ struct Endpoint {
     }
 }
 
-final class URLSessionAPIClient: APIClient, Sendable {
+// @unchecked because JSONDecoder isn't formally Sendable, yet this client is immutable
+// (all `let`) and never mutates the decoder's configuration after init, so sharing it
+// across concurrency domains is safe. URLSession and URL are already Sendable.
+final class URLSessionAPIClient: APIClient, @unchecked Sendable {
     private let session: URLSession
     private let baseURL: URL
     private let decoder: JSONDecoder

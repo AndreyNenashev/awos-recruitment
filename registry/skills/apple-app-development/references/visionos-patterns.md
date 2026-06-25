@@ -799,20 +799,37 @@ struct LODComponent: Component {
     let switchDistance: Float
 }
 
+// WorldTrackingProvider must be started once via ARKitSession.run(_:) before any
+// System can query it. RealityKit instantiates Systems for you, so expose the
+// already-running provider through a shared @MainActor holder rather than init injection.
+@MainActor
+enum WorldTracking {
+    static let provider = WorldTrackingProvider()
+    private static let session = ARKitSession()
+
+    // Call once during ImmersiveSpace setup, e.g.:
+    //   RealityView { ... }.task { await WorldTracking.start() }
+    static func start() async {
+        guard WorldTrackingProvider.isSupported else { return }
+        do {
+            try await session.run([provider])
+        } catch {
+            print("World tracking failed to start: \(error)")
+        }
+    }
+}
+
 struct LODSystem: System {
     static let query = EntityQuery(where: .has(LODComponent.self))
 
-    // On visionOS, use WorldTrackingProvider.deviceAnchor for user position.
-    // PerspectiveCameraComponent is for non-visionOS RealityKit (iOS/macOS).
-    private var worldTracking: WorldTrackingProvider?
-
-    init(scene: RealityKit.Scene) {
-        // WorldTrackingProvider should be started in your ImmersiveSpace setup
-        // and passed to this system or stored in a shared location.
-    }
+    init(scene: RealityKit.Scene) {}
 
     func update(context: SceneUpdateContext) {
-        guard let deviceAnchor = worldTracking?.queryDeviceAnchor(atTimestamp: CACurrentMediaTime()) else { return }
+        // On visionOS, read the user's head position from the device anchor.
+        // (PerspectiveCameraComponent is for non-visionOS RealityKit on iOS/macOS.)
+        guard let deviceAnchor = WorldTracking.provider.queryDeviceAnchor(
+            atTimestamp: CACurrentMediaTime()
+        ) else { return }
         let headPosition = deviceAnchor.originFromAnchorTransform.columns.3
 
         for entity in context.entities(matching: Self.query, updatingSystemWhen: .rendering) {

@@ -1009,10 +1009,15 @@ import AppIntents
 
 struct CaffeinateToggle: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "CaffeinateToggle") {
+        // A value provider supplies the current state; without it, isOn would be a
+        // snapshot captured at view-build time and wouldn't reflect external changes.
+        StaticControlConfiguration(
+            kind: "CaffeinateToggle",
+            provider: CaffeinateValueProvider()
+        ) { isActive in
             ControlWidgetToggle(
                 "Caffeinate",
-                isOn: CaffeinateManager.shared.isActive,
+                isOn: isActive,
                 action: ToggleCaffeinateIntent()
             ) { isOn in
                 Label(isOn ? "Active" : "Off", systemImage: isOn ? "cup.and.saucer.fill" : "cup.and.saucer")
@@ -1021,6 +1026,14 @@ struct CaffeinateToggle: ControlWidget {
         }
         .displayName("Caffeinate Toggle")
         .description("Toggle caffeinate mode from Control Center.")
+    }
+}
+
+struct CaffeinateValueProvider: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        await CaffeinateManager.shared.isActive
     }
 }
 
@@ -1048,7 +1061,6 @@ Apple defines **12 App Intent Domains**: Books, Browser, Camera, Documents, File
 
 ```swift
 import AppIntents
-import AssistantSchemas
 
 struct OpenMailIntent: AppIntent, OpenMailboxIntent {
     static var title: LocalizedStringResource = "Open Mailbox"

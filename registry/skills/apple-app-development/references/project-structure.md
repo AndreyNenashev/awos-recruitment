@@ -910,9 +910,13 @@ xcrun altool --upload-app \
     --apiIssuer YOUR_ISSUER_ID
 
 # Using Apple Transporter (modern, recommended for CI)
-xcrun iTMSTransporter -m upload \
+# iTMSTransporter ships with the standalone Transporter app (Mac App Store), not Xcode —
+# its binary lives at /Applications/Transporter.app/Contents/itms/bin/iTMSTransporter.
+# -apiKey takes the alphanumeric Key ID; the matching AuthKey_<KEY_ID>.p8 must sit in a
+# search path such as ~/.appstoreconnect/private_keys/.
+/Applications/Transporter.app/Contents/itms/bin/iTMSTransporter -m upload \
     -assetFile build/export/MyApp.ipa \
-    -apiKey ~/.private_keys/AuthKey_XXXX.p8 \
+    -apiKey YOUR_KEY_ID \
     -apiIssuer YOUR_ISSUER_ID
 ```
 
