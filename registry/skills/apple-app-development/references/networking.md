@@ -549,7 +549,7 @@ class AuthInterceptor: RequestInterceptor {
 
         Task {
             do {
-                _ = try await tokenManager.refreshAccessToken()
+                _ = try await tokenManager.validToken()
                 completion(.retry)
             } catch {
                 completion(.doNotRetryWithError(error))

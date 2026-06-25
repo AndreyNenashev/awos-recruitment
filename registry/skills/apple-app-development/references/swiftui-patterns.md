@@ -1133,7 +1133,7 @@ struct DynamicHeader: View {
 }
 ```
 
-> **iOS 18+:** For many geometry-reading use cases, `onGeometryChange(for:of:action:)` (back-deployed to iOS 16) is a simpler alternative that avoids the `PreferenceKey` boilerplate entirely:
+> **iOS 16+ (back-deployed):** For many geometry-reading use cases, `onGeometryChange(for:of:action:)` is a simpler alternative that avoids the `PreferenceKey` boilerplate entirely:
 >
 > ```swift
 > headerContent

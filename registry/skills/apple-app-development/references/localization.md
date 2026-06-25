@@ -38,7 +38,7 @@ Always include the positional index, even for strings with a single parameter. T
 
 **Single parameter:**
 
-```
+```text
 "Hello, %1$(name)@!"
 "You have %1$(count)lld unread messages."
 "Last updated on %1$(date)@."
@@ -46,7 +46,7 @@ Always include the positional index, even for strings with a single parameter. T
 
 **Multiple parameters:**
 
-```
+```text
 "Hello, %1$(name)@! You have %2$(count)lld new notifications."
 "Showing %1$(current)lld of %2$(total)lld results."
 "Transfer %1$(amount)@ from %2$(source)@ to %3$(destination)@."
@@ -92,7 +92,7 @@ String Catalogs natively handle **plural rules** and **device variations**, repl
 
 **Plural categories** (per CLDR): `zero`, `one`, `two`, `few`, `many`, `other`. Not every language uses every category — String Catalogs only show categories relevant to each target locale.
 
-To define a plural string, create a key in the String Catalog and set its type to **Plural** in the Xcode editor. Each category then gets its own translation. In code, pass an integer using the `%lld` format specifier:
+To define a plural string, create a key in the String Catalog and set its type to **Plural** in the Xcode editor. Each category's translation references the count with the `%lld` format specifier (shown in the variations below). In code you don't write `%lld` yourself — pass the integer via Swift string interpolation, or use the generated accessor:
 
 ```swift
 // String Catalog key: "unread_count"

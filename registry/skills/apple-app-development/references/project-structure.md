@@ -1105,7 +1105,7 @@ struct MyApp: App {
 
 **2. Separate files per target** — create one file per target with the same type name, and assign each file to the correct target membership in Xcode. The linker resolves the right implementation at build time.
 
-```
+```text
 MyApp/
 ├── Config/
 │   ├── AppConfig+TargetA.swift    # target membership: Target A only

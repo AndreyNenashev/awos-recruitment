@@ -319,14 +319,14 @@ swiftlint lint --config .swiftlint.yml
 
 Rules:
 - Always review auto-correct changes before committing.
-- Run auto-correct before linting in CI to reduce noise.
+- Run auto-correct locally before committing; keep CI check-only to avoid mutating the workspace.
 - Not all rules are auto-correctable — some require manual fixes.
 
 ### Nested Configurations
 
 Place additional `.swiftlint.yml` files in subdirectories to override the root config:
 
-```
+```text
 MyProject/
 ├── .swiftlint.yml              # Root config
 ├── Sources/

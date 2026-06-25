@@ -1136,7 +1136,7 @@ Test plans define which tests to run, with which configuration. They replace sch
 
 A test plan is a JSON file (`.xctestplan`) configured in Xcode:
 
-```
+```text
 MyApp.xctestplan
 ├── Configuration: "Default"
 │   ├── Language: en

@@ -1180,7 +1180,8 @@ class Poller {
     func startPollingFixed() {
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.fetchData()
+                guard let self else { return }   // stop the loop once the owner is gone
+                await self.fetchData()
                 try? await Task.sleep(for: .seconds(30))
             }
         }

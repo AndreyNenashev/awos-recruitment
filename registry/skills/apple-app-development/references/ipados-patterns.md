@@ -835,7 +835,7 @@ class ExternalDisplayManager {
         // Check for already-connected external scenes
         for scene in UIApplication.shared.connectedScenes {
             if let windowScene = scene as? UIWindowScene,
-               windowScene.session.role == .externalDisplayNonInteractive {
+               windowScene.session.role == .windowExternalDisplayNonInteractive {
                 configureExternalDisplay(windowScene)
             }
         }
@@ -843,11 +843,14 @@ class ExternalDisplayManager {
 
     @objc private func sceneDidConnect(_ notification: Notification) {
         guard let windowScene = notification.object as? UIWindowScene,
-              windowScene.session.role == .externalDisplayNonInteractive else { return }
+              windowScene.session.role == .windowExternalDisplayNonInteractive else { return }
         configureExternalDisplay(windowScene)
     }
 
     @objc private func sceneDidDisconnect(_ notification: Notification) {
+        // Only tear down for the external display scene, not any disconnecting scene.
+        guard let windowScene = notification.object as? UIWindowScene,
+              windowScene.session.role == .windowExternalDisplayNonInteractive else { return }
         externalWindow?.isHidden = true
         externalWindow = nil
     }

@@ -44,7 +44,7 @@ The Xcode Static Analyzer performs deep analysis of control flow and memory mana
 
 #### Build Settings
 
-```
+```text
 // Enable static analysis during builds (slows build — use selectively)
 RUN_CLANG_STATIC_ANALYZER = YES              // Analyze During 'Build'
 CLANG_STATIC_ANALYZER_MODE = deep            // shallow (faster) or deep (thorough)
@@ -55,11 +55,11 @@ CLANG_STATIC_ANALYZER_MODE_ON_ANALYZE_ACTION = deep
 
 Sanitizers are runtime tools that detect bugs during test execution. Enable them in your scheme or test plan.
 
-#### Address Sanitizer (ASan)
+### Address Sanitizer (ASan)
 
 Detects memory corruption: buffer overflows, use-after-free, stack overflow, heap overflow.
 
-```
+```text
 // Scheme > Test > Diagnostics > Address Sanitizer
 ENABLE_ADDRESS_SANITIZER = YES
 
@@ -67,11 +67,11 @@ ENABLE_ADDRESS_SANITIZER = YES
 CLANG_ADDRESS_SANITIZER_CONTAINER_OVERFLOW = YES
 ```
 
-#### Thread Sanitizer (TSan)
+### Thread Sanitizer (TSan)
 
 Detects data races — concurrent access to shared mutable state without synchronization.
 
-```
+```text
 // Scheme > Test > Diagnostics > Thread Sanitizer
 ENABLE_THREAD_SANITIZER = YES
 ```
@@ -81,11 +81,11 @@ Rules:
 - Thread Sanitizer adds ~5-15x slowdown — run in CI on a dedicated test plan.
 - Thread Sanitizer is especially valuable when migrating to Swift 6 strict concurrency.
 
-#### Undefined Behavior Sanitizer (UBSan)
+### Undefined Behavior Sanitizer (UBSan)
 
 Detects undefined behavior: integer overflow, misaligned pointers, null reference.
 
-```
+```text
 // Scheme > Test > Diagnostics > Undefined Behavior Sanitizer
 ENABLE_UNDEFINED_BEHAVIOR_SANITIZER = YES
 CLANG_UNDEFINED_BEHAVIOR_SANITIZER_INTEGER = YES

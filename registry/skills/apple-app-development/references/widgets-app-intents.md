@@ -1062,14 +1062,15 @@ Apple defines **12 App Intent Domains**: Books, Browser, Camera, Documents, File
 ```swift
 import AppIntents
 
-struct OpenMailIntent: AppIntent, OpenMailboxIntent {
-    static var title: LocalizedStringResource = "Open Mailbox"
-
-    @Parameter(title: "Mailbox")
-    var target: MailboxEntity?
+// Tag an existing or new app intent with @AssistantIntent(schema:) so Siri and
+// Apple Intelligence can invoke it for a known domain action. The macro enforces
+// the schema's required conformance and parameters at compile time.
+@AssistantIntent(schema: .books.openBook)
+struct OpenBookIntent: OpenIntent {
+    var target: BookEntity
 
     func perform() async throws -> some IntentResult {
-        await NavigationManager.shared.openMailbox(target?.id)
+        await NavigationManager.shared.openBook(target.id)
         return .result()
     }
 }
@@ -1105,39 +1106,33 @@ When `.small` is specified, provide a dedicated watchOS layout using `WidgetFami
 Prior to iOS 18, updating a Live Activity via push required sending individual notifications to each device's unique push token. Broadcast push notifications solve this scalability problem by allowing a single push to a **channel ID** that reaches all subscribers.
 
 ```swift
-// Start a Live Activity with a channel for broadcast push
+// Start a Live Activity subscribed to a broadcast channel (iOS 18+).
+// The channel ID is a base64-encoded string your server obtains from APNs
+// (see "Sending channel management requests to APNs").
 let activity = try Activity.request(
     attributes: attributes,
     content: content,
-    pushType: .token
+    pushType: .channel(channelID)   // e.g. "c29tZUNoYW5uZWw="
 )
-
-// Observe the push-to-start token for channel-based delivery
-Task {
-    for await token in Activity<DeliveryAttributes>.pushToStartTokenUpdates {
-        let tokenString = token.map { String(format: "%02x", $0) }.joined()
-        await registerBroadcastToken(tokenString, channelID: "delivery-\(orderID)")
-    }
-}
 ```
 
 Configure your APNs payload with the channel ID rather than individual device tokens. The server sends one push, and Apple's infrastructure fans it out to all devices subscribed to that channel. This is especially useful for events with many simultaneous viewers (sports scores, ride-sharing, etc.) where per-device token management is impractical.
 
 ### WidgetKit Push Notifications
 
-Widgets can be updated via APNs push notifications, reducing the need for frequent timeline reloads and improving data freshness.
+Widgets can be updated via APNs push notifications — useful for server-driven or cross-device data changes without frequent polling.
 
 To configure push-based widget updates:
-1. Enable the `WidgetKit Extension` push notification capability in your widget extension target.
-2. Implement `onBackgroundURLSessionEvents` or rely on the system to trigger a timeline reload when the push arrives.
-3. Send a push notification with the `content-available` flag and include your widget kind in the payload.
+1. Enable push for your widget extension and register the widget's push token with your server.
+2. From your server, send a push with header `apns-push-type: widgets` (topic `<bundleID>.push-type.widgets`) and an `aps` payload containing `"content-changed": true`.
+3. On receipt, WidgetKit reloads your timelines (similar to `WidgetCenter.reloadAllTimelines()`), driving `getTimeline(in:)` for the affected widget kinds.
 
-The system wakes the widget extension upon receiving the push and invokes `getTimeline` for the specified widget kind. Push-driven reloads do not count against the daily reload budget, making them ideal for widgets that need real-time data without polling.
+WidgetKit push updates are budgeted and delivered opportunistically — they supplement the system's refresh budget rather than bypassing it, so they aren't guaranteed to be immediate.
 
 ### Platform Availability Update
 
 > **visionOS 26**: WidgetKit is now supported on visionOS, allowing widgets to appear in the Home View alongside app icons. Existing iOS widgets can run with minimal adaptation — ensure your widget supports appropriate families and test with the visionOS simulator.
-
+>
 > **CarPlay (iOS 26)**: CarPlay widgets are being introduced, enabling glanceable information on the CarPlay dashboard. CarPlay widgets use a constrained set of families and emphasize large, readable text with minimal interactivity for driver safety. Adopt `.systemSmall` as the primary family for CarPlay and follow the CarPlay Human Interface Guidelines for layout.
 
 ### Common Pitfalls
