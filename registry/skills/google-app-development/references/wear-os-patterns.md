@@ -9,7 +9,7 @@ Target: latest **Wear OS** / **Compose for Wear OS** with Material 3 (`androidx.
 
 Wear OS uses a dedicated Compose toolkit (`androidx.wear.compose`) that accounts for round displays, limited screen real estate, and wrist-based interaction.
 
-> **Important:** Use `androidx.wear.compose.material3` for Wear OS UI. This library supersedes `androidx.wear.compose:compose-material` and implements Material 3 Expressive design for Wear OS. Do not mix objects from this library with objects from the mobile Compose Material 3 library (`androidx.compose.material3`).
+> **Important:** Use Wear Material 3 for Wear OS UI — package namespace `androidx.wear.compose.material3`, Maven coordinate `androidx.wear.compose:compose-material3`. This library supersedes `androidx.wear.compose:compose-material` and implements Material 3 Expressive design for Wear OS. Do not mix objects from this library with objects from the mobile Compose Material 3 library (`androidx.compose.material3`).
 
 ### Core Navigation — `SwipeDismissableNavHost`
 ---

@@ -96,6 +96,9 @@ interface ItemDao {
     fun observeById(id: String): Flow<ItemEntity?>
 
     // Query — suspend for one-shot reads
+    @Query("SELECT * FROM items ORDER BY created_at DESC")
+    suspend fun getAll(): List<ItemEntity>
+
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun getById(id: String): ItemEntity?
 

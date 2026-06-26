@@ -21,7 +21,7 @@ Fire Tablets are AOSP-based Android tablets manufactured by Amazon. They run sta
 | Tier | RAM | Density | Display | Notes |
 |---|---|---|---|---|
 | Low | 2 GB | mdpi (~170 dpi) | 7" ~1024x600 | Reduce image cache, simplify animations, use mdpi assets |
-| Mid | 3 GB | mdpi-hdpi (~190 dpi) | 8" ~1280x800 | Standard experience, moderate asset quality |
+| Mid | 2-3 GB | mdpi-hdpi (~190 dpi) | 8" ~1280x800 | Standard experience, moderate asset quality |
 | High | 3-4 GB | hdpi (~220 dpi) | 10-11" ~1920x1200+ | Full experience, stylus support possible |
 
 For the current device lineup and exact specifications, see the [Amazon Fire Tablet Device Specifications](https://developer.amazon.com/docs/fire-tablets/ft-device-specifications.html).
@@ -29,7 +29,7 @@ For the current device lineup and exact specifications, see the [Amazon Fire Tab
 ### Performance Tiers
 
 - **Low tier**: Slowest SoC, 2 GB RAM, lowest resolution. Treat this as a constrained device -- reduce image cache sizes, avoid heavy animations, limit background work. The 1024x600 resolution at 7" yields ~170 dpi, which maps to `mdpi` density bucket.
-- **Mid tier**: Modest improvement over low tier. Still 2 GB RAM but a faster processor and higher resolution. Standard experience with moderate asset quality.
+- **Mid tier**: Modest improvement over low tier. 2-3 GB RAM (2 GB on older Fire HD 8 models, 3 GB+ on newer generations) with a faster processor and higher resolution. Standard experience with moderate asset quality.
 - **High tier**: 3-4 GB RAM, faster SoCs, higher resolution displays. Full experience with richer layouts and larger assets. Some high-tier devices support stylus input (Amazon-branded stylus).
 
 ### Density Bucket Mapping

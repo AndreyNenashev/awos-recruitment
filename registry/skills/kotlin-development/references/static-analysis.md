@@ -468,7 +468,7 @@ STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.kts\?$'
 
 if [ -n "$STAGED_FILES" ]; then
     echo "Running ktlint on staged files..."
-    ./gradlew ktlintCheck --daemon 2>/dev/null
+    ./gradlew ktlintCheck
     if [ $? -ne 0 ]; then
         echo "ktlint failed. Run './gradlew ktlintFormat' to fix."
         exit 1

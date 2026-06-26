@@ -28,7 +28,7 @@ compose-bom = "<latest>"
 mockk = "<latest>"
 turbine = "<latest>"
 robolectric = "<latest>"
-coroutines-test = "<latest>"
+coroutines = "<latest>"
 truth = "<latest>"
 
 [libraries]
@@ -44,14 +44,14 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines-test" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 ```
 
 ```kotlin
 // build.gradle.kts (app or feature module)
 plugins {
-    id("de.mannodermaus.android-junit-framework") // JUnit 5+ support for Android
+    id("de.mannodermaus.android-junit") version "<latest>" // JUnit 5 (Jupiter) support for Android; plugin renamed from android-junit5 in 2.0
 }
 
 dependencies {

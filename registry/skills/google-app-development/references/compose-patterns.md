@@ -345,10 +345,13 @@ fun UserListScreen(viewModel: UserViewModel = viewModel()) {
             UserCard(user)
         }
 
-        // Trigger load-more when approaching the end
+        // Trigger load-more when approaching the end.
+        // Key the effect on the loaded count so it fires once per page, not on every
+        // recomposition of this item — keying on Unit would re-trigger loadMore() in a
+        // loop as soon as isLoadingMore flips back to false while hasMore is still true.
         item {
             if (uiState.hasMore && !uiState.isLoadingMore) {
-                LaunchedEffect(Unit) { viewModel.loadMore() }
+                LaunchedEffect(uiState.users.size) { viewModel.loadMore() }
             }
             if (uiState.isLoadingMore) {
                 LoadingIndicator()

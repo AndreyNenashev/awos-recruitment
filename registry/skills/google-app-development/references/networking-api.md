@@ -693,10 +693,12 @@ fun ItemListScreen(viewModel: ItemListViewModel = hiltViewModel()) {
             ItemCard(item)
         }
 
-        // Trigger load-more when approaching the end
+        // Trigger load-more when approaching the end.
+        // Key the effect on the loaded count so it fires once per page — keying on Unit
+        // would re-trigger loadMore() whenever this item re-enters composition on scroll.
         item {
             if (uiState.hasMore && !uiState.isLoadingMore) {
-                LaunchedEffect(Unit) { viewModel.loadMore() }
+                LaunchedEffect(uiState.items.size) { viewModel.loadMore() }
             }
             if (uiState.isLoadingMore) {
                 LoadingIndicator()
@@ -764,6 +766,8 @@ interface FileApi {
 // Usage
 suspend fun uploadFile(uri: Uri, context: Context) {
     val stream = context.contentResolver.openInputStream(uri)!!
+    // readBytes() loads the whole file into memory — fine for small images. For large
+    // media, stream it via a custom RequestBody backed by the InputStream to avoid OOM.
     val body = stream.readBytes().toRequestBody("image/*".toMediaType())
     val part = MultipartBody.Part.createFormData("file", "photo.jpg", body)
     api.upload(part, "Profile photo".toRequestBody())
@@ -773,7 +777,9 @@ suspend fun uploadFile(uri: Uri, context: Context) {
 ### Download with Progress
 
 ```kotlin
-suspend fun downloadFile(url: String, output: File): Flow<DownloadProgress> = callbackFlow {
+// Not `suspend`: returns a cold Flow. `flowOn(Dispatchers.IO)` moves the blocking
+// OkHttp call and file I/O off the collector's thread (e.g. the main thread).
+fun downloadFile(url: String, output: File): Flow<DownloadProgress> = callbackFlow {
     val request = Request.Builder().url(url).build()
     val response = okHttpClient.newCall(request).execute()
     val body = response.body ?: throw IOException("Empty body")
@@ -792,7 +798,7 @@ suspend fun downloadFile(url: String, output: File): Flow<DownloadProgress> = ca
         }
     }
     close()
-}
+}.flowOn(Dispatchers.IO)
 
 data class DownloadProgress(val bytesDownloaded: Long, val totalBytes: Long) {
     val fraction: Float get() = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f

@@ -402,9 +402,9 @@ MediaSession.Builder(this, player)
         ): MediaSession.ConnectionResult {
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(
-                    SessionCommands.Builder()
+                    // Start from the default commands and append the custom one
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(COMMAND_LIKE)
-                        .addSessionCommand(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
                         .build()
                 )
                 .build()
@@ -1032,7 +1032,7 @@ player.addAnalyticsListener(object : AnalyticsListener {
 | No audio — audio focus not requested | Set `handleAudioFocus = true` in `ExoPlayer.Builder` |
 | No background playback | Use `MediaSessionService` with `foregroundServiceType="mediaPlayback"` and permissions |
 | Playback stops on headphone disconnect | Set `setHandleAudioBecomingNoisy(true)` |
-| Player crashes on rotation | Add `configChanges="orientation|screenSize"` to Activity, or manage player in ViewModel |
+| Player crashes on rotation | Add `configChanges="orientation\|screenSize"` to Activity, or manage player in ViewModel |
 | Subtitles not showing | Ensure `PlayerView` has `app:use_controller="true"` and subtitle track is selected |
 | PiP not entering automatically | Requires `setAutoEnterEnabled(true)` (API 31+) and `supportsPictureInPicture="true"` in manifest |
 | Downloaded content won't play | Player must use `CacheDataSource` factory pointing at the same download cache |

@@ -966,11 +966,14 @@ Intercept deep links at the Activity level and route them through your own navig
 ```kotlin
 class MainActivity : ComponentActivity() {
 
+    // Lifted to an activity property so onNewIntent can reach the same controller
+    private lateinit var navController: NavHostController
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val navController = rememberNavController()
+            navController = rememberNavController()
             MyAppTheme {
                 MyAppNavHost(navController = navController)
             }
@@ -984,7 +987,9 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Handle deep links arriving while the Activity is already running
-        routeDeepLink(intent, navController)
+        if (::navController.isInitialized) {
+            routeDeepLink(intent, navController)
+        }
     }
 }
 ```
