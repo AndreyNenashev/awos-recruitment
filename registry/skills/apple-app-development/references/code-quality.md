@@ -232,7 +232,7 @@ let danger = Danger()
 
 // Warn if PR is too large
 let bigPRThreshold = 500
-if danger.github.pullRequest.additions + danger.github.pullRequest.deletions > bigPRThreshold {
+if (danger.github.pullRequest.additions ?? 0) + (danger.github.pullRequest.deletions ?? 0) > bigPRThreshold {
     warn("This PR is quite large. Consider breaking it into smaller PRs.")
 }
 
@@ -246,13 +246,11 @@ if !sourceChanges.isEmpty && testChanges.isEmpty {
     warn("Source files were modified but no tests were updated. Please add or update tests.")
 }
 
-// Check for TODO/FIXME in added lines
+// Check for TODO/FIXME in modified Swift files
 for file in danger.git.modifiedFiles.filter({ $0.hasSuffix(".swift") }) {
-    for line in danger.utils.diff(for: file)?.hunks.flatMap(\.lines) ?? [] where line.type == .addition {
-        if line.text.contains("TODO") || line.text.contains("FIXME") {
-            message("New TODO/FIXME found in \(file). Consider resolving before merge.")
-            break
-        }
+    let lines = danger.utils.readFile(file).components(separatedBy: .newlines)
+    if lines.contains(where: { $0.contains("TODO") || $0.contains("FIXME") }) {
+        message("New TODO/FIXME found in \(file). Consider resolving before merge.")
     }
 }
 ```

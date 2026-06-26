@@ -113,7 +113,7 @@ func widgetRefresh() async throws {
 @Test(
     "Upload retries on transient failure",
     .tags(.networking),
-    .timeLimit(.seconds(30)),
+    .timeLimit(.minutes(1)),
     .bug("https://jira.example.com/PROJ-123")
 )
 func uploadRetry() async throws {
