@@ -493,7 +493,7 @@ fun shows_data_after_loading() {
 
 Run Android framework tests on JVM without a device. Faster than instrumented tests.
 
-> **JUnit 4 lifecycle here.** `RobolectricTestRunner` is a JUnit 4 runner, so these integration examples use JUnit 4 annotations (`org.junit.Test`, `@Before`/`@After`) — Jupiter's `@BeforeEach` would never fire under a JUnit 4 runner. They run alongside the JUnit 5 unit tests above via the Vintage engine. (Alternatively, use Robolectric's JUnit 5 `@ExtendWith(RobolectricExtension::class)`.)
+> **JUnit 4 lifecycle here.** `RobolectricTestRunner` is a JUnit 4 runner, so these integration examples use JUnit 4 annotations (`org.junit.Test`, `@Before`/`@After`) — Jupiter's `@BeforeEach` would never fire under a JUnit 4 runner. They run alongside the JUnit 5 unit tests above via the Vintage engine. (Robolectric has no official JUnit 5 extension yet — issue [#3477](https://github.com/robolectric/robolectric/issues/3477) is still open. For native Jupiter lifecycle, the community `tech.apter.junit5.jupiter:robolectric-extension` provides `@ExtendWith(RobolectricExtension::class)` plus a companion Gradle plugin.)
 
 ```kotlin
 @RunWith(RobolectricTestRunner::class)
@@ -518,12 +518,14 @@ class NotificationHelperTest {
 ### Room In-Memory Testing
 
 ```kotlin
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class ItemDaoTest {
 
     private lateinit var db: AppDatabase
     private lateinit var dao: ItemDao
 
-    @BeforeEach
+    @Before
     fun setUp() {
         db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
@@ -532,7 +534,7 @@ class ItemDaoTest {
         dao = db.itemDao()
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
         db.close()
     }
