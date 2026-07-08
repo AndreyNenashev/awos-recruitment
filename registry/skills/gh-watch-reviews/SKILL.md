@@ -28,6 +28,8 @@ Recurring use is `/loop 10m /gh-watch-reviews` — the interval is `/loop`'s nat
 
 One file in the watched repo holds user config and machine-managed dedup state. Read it with the Read tool; write with Write. Never ask the user to edit `state` by hand.
 
+Read the file **once per session** (first pass); later ticks reuse the in-context copy — this session is the file's only writer, and config changes go through `reconfigure`. Writes still go to disk immediately (they must survive the session), but a tick that decides nothing writes nothing.
+
 ```json
 {
   "config": {
@@ -93,22 +95,20 @@ gh search prs --state open --repo <owner/repo> \
   -- -reviewed-by:@me -author:@me
 ```
 
-Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
+Run both searches in ONE combined Bash call — on a quiet tick this keeps the entire pass to a single tool call. Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
 
 - `author.is_bot == true` when `exclude_bots`
 - `author.login` in `exclude_authors` or in an ad-hoc `exclude:` arg
 - `isDraft == true` unless `include_drafts` or ad-hoc `include-drafts`
 
-For each survivor fetch the head commit: `gh pr view <n> --repo <owner/repo> --json headRefOid` (fire these in parallel, one Bash call per PR in a single message).
-
 ### 5. Dedupe against state
 
-For each candidate with a `state[number]` entry:
+For each candidate with a `state[number]` entry — every rule except one needs no extra API call:
 
 - `reviewed` → suppress unless it matched the review-requested query (after a submitted review it can only reappear there, and a re-request is a deliberate human act — surface it as "re-requested after your review").
-- `skipped` → **skips are sticky.** Suppress every unrequested-query match, even when the SHA changed — new commits alone never resurface a skipped PR. Only a review-requested match resurfaces it ("review requested — previously skipped"), with one exception: `via: "requested"` and the same `headRefOid` means the user already declined this exact request at this exact commit — stay suppressed until new commits arrive.
+- `skipped` → **skips are sticky.** Suppress every unrequested-query match, even if new commits arrived — new commits alone never resurface a skipped PR. Only a review-requested match resurfaces it ("review requested — previously skipped"), with one exception: when the entry is `via: "requested"`, fetch the current head (`gh pr view <n> --repo <owner/repo> --json headRefOid`) — the same `headRefOid` as recorded means the user already declined this exact request at this exact commit, stay suppressed; a different one means new commits, surface as "new commits since your last decision".
 
-Candidates without a state entry always surface. Opportunistically prune `state` entries whose PRs are no longer open.
+Candidates without a state entry always surface. Fetch `headRefOid` only where the rule above demands it — surfaced candidates get their SHA at decision time (step 7), so a quiet tick fetches nothing. Prune `state` entries whose PRs are closed/merged when you're writing state anyway.
 
 ### 6. Nothing to review → silence
 
@@ -120,7 +120,7 @@ On a quiet tick, silence IS the deliverable, and it overrides any general "summa
 
 Sort oldest-first by `createdAt`. For each candidate show one line — `#N — title — @author — <why: review requested / never reviewed / new commits since your last decision>` — then `AskUserQuestion` with options:
 
-Every state write below also records `via`: `"requested"` if the candidate matched the review-requested query, else `"unrequested"`.
+Every state write below records `via` (`"requested"` if the candidate matched the review-requested query, else `"unrequested"`) and `sha` — fetch it now if not already known: `gh pr view <n> --repo <owner/repo> --json headRefOid`.
 
 - **Review now** →
   1. Write `state[number] = {sha, decision: "in_progress", via, at: now}` to the file BEFORE anything else — this is what makes a mid-review loop tick no-op (step 2).
