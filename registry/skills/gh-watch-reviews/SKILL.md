@@ -112,7 +112,9 @@ Candidates without a state entry always surface. Opportunistically prune `state`
 
 ### 6. Nothing to review → silence
 
-Zero candidates after dedup: **end the turn with no output whatsoever.** No "nothing new", no status line. Silence is the contract for quiet ticks.
+Zero candidates after dedup: **end the turn immediately after the last tool call.** The correct final assistant message is literally empty — stop without writing anything.
+
+On a quiet tick, silence IS the deliverable, and it overrides any general "summarize the turn in a final message" habit. Every form of text is a violation: no "nothing new", no status line, no summary of what was checked, and no text wrapped in tags — a `<system-reminder>`-style block you write yourself is ordinary output and the user sees it verbatim. About to type a closing word "just so the turn isn't empty"? That impulse is exactly what this rule exists to stop.
 
 ### 7. Process candidates — one at a time
 
