@@ -27,38 +27,35 @@ Treat automated reviewers (CodeRabbit, Codex, Bito, Sonar, and similar) as sugge
 ## Workflow
 
 ```
-- [ ] 0. Bias gate: flag a contaminated session before triaging
 - [ ] 1. Gather feedback items
-- [ ] 2. Read context and draft a response per item
+- [ ] 2. Triage in a fresh subagent; materialize the plan
 - [ ] 3. Results gate: present the plan and ask — back with sources / proceed / change
 - [ ] 4. Apply each approved item
 - [ ] 5. Commit (public: + push)
 - [ ] 6. Summary
 ```
 
-### 0. Bias gate
-
-Knowing the work is the author's job; defending it is not. The dangerous step here is triage — classifying an item as `fix` vs `pushback` — and a session that wrote the code under feedback is anchored to its own decisions. Before anything else, inspect **this conversation** for that contamination:
-
-- this session wrote, edited, or designed the code the feedback targets;
-- this session already debated these review points (e.g. it argued for the approach a reviewer now questions).
-
-If either applies, stop and say which one, then ask with `AskUserQuestion`:
-
-- **Fresh session** (recommended) — you can't open one yourself, so hand off: end the turn by printing the exact invocation to carry over (`/pr-comments-address <args>`, plus any constraints from this conversation worth keeping) and tell the user to run it after `/clear` or in a new session. Don't try to simulate it with a headless `claude -p` call — that runs without the interactive gates this skill depends on.
-- **Proceed** — run the workflow normally, in-session knowledge and all. Addressing feedback right from the session that pushed the PR is a common, deliberate flow; respect it.
-- **Proceed, quarantine session knowledge** — triage each item from the code and the reviewer's argument as they stand, not from what you remember intending; before classifying anything `pushback`, restate the reviewer's point in its strongest form and check it against the code. Note the caveat in the step 6 summary (never in posted replies).
-
-A clean conversation — or one whose only relation to the PR is this skill's own prior rounds — passes silently; don't ask.
-
 ### 1. Gather feedback items
 
 - **public:** run `preflight`, `checkout-pr`, and `fetch-working-set` from [references/github.md](references/github.md). `checkout-pr` handles the branch: if you're **already on the PR's head branch**, stay put and just pull to the tip — a worktree would be redundant. Otherwise it defaults to an **isolated git worktree**, so the user's current branch and working tree stay untouched — only check the branch out in place if the user asked for that (e.g. they want to review or run it in their main working tree). If the working set is empty, say "Nothing new to address" and stop.
 - **local:** run `read-feedback` from [references/local.md](references/local.md) to load the review file or pasted text into discrete items.
 
-### 2. Read context and draft responses
+### 2. Triage in a fresh subagent
 
-If the request links or references an off-platform discussion — a Slack thread, meeting notes, a roadmap or ticket, a design doc — read it before triaging; it may show that a point a reviewer raised was already settled elsewhere (making it `pushback` or `dismiss-resolve`) or explain the intent behind a change under question. If reading it fails (no access, dead link, auth wall), don't silently skip it — tell the user and ask them to paste the relevant content, or to confirm you should proceed without it. For each item, `Read` the file at the comment's `path` around `line` before drafting — never propose a fix without seeing the code. (Public: for outdated threads `line` may be null; fall back to `originalLine` and `diffHunk`.) When the item list is long, parallelize the reading, not the judgment: fan out subagents — one per item or small batch — each returning structured facts: the code around the anchor, what it currently does, whether the concern is already addressed. That's collection, not evaluation, so a small/fast model suffices if agent dispatch lets you pick one; with no agent dispatch, read inline. Categorizing and drafting stay with you — fix-vs-pushback is the judgment the bias gate protects, and replies should sound like one author. Categorize each item:
+Knowing the work is the author's job; defending it is not. The dangerous judgment here is triage — classifying an item as `fix` vs `pushback` — and a session that wrote or debated the code under feedback is anchored to its own decisions. A model is also a poor judge of its own anchoring, so don't self-assess independence; remove the need for it: triage runs in a **fresh subagent** that never sees this conversation, whether the session touched the code or not.
+
+Collect what the subagent legitimately needs before dispatching. If the request links or references an off-platform discussion — a Slack thread, meeting notes, a roadmap or ticket, a design doc — fetch it now (the subagent may lack access to the tools or auth that reach it); it may show that a point a reviewer raised was already settled elsewhere (making it `pushback` or `dismiss-resolve`) or explain the intent behind a change under question. If reading it fails (no access, dead link, auth wall), don't silently skip it — tell the user and ask them to paste the relevant content, or to confirm you should proceed without it. Pass it to the subagent as source material — verbatim, or an extractive digest of what was said and decided — never as your conclusions about the feedback.
+
+Dispatch one triage subagent with the Agent tool (`subagent_type: "general-purpose"` — a fresh context; **not** `"fork"`, which inherits this conversation and defeats the isolation). Hand it exactly:
+
+- the PR ref and the checkout path from step 1 (local: the repo path and the review file's origin);
+- every feedback item verbatim: author, `path:line`, full thread contents (public: include `originalLine` and `diffHunk` for outdated threads where `line` is null);
+- the off-platform source material collected above;
+- this SKILL.md's path, with the instruction to follow this step's category table and drafting rules and the reply-voice boundaries below.
+
+Withhold everything else — what this session intended, designed, or argued about the change. The urge to add "helpful context" about what the code was meant to do is exactly the anchoring the subagent exists to strip out: the code, the diff, and the reviewer's words are its whole world, so its categorization can't be a defense of decisions it never saw.
+
+The subagent works the items: it `Read`s the file at each comment's `path` around `line` before drafting — never a proposed fix without seeing the code — and for a long list it may fan the reading out to its own nested subagents (collection suits a small/fast model; categorizing and drafting stay in the one triage context so replies sound like one author). For each item it returns the category, the actual reply text, and — for a `fix` — a one-line description of the code change. Not placeholders. Categorize each item:
 
 | Category | When | Action |
 |---|---|---|
@@ -67,7 +64,9 @@ If the request links or references an off-platform discussion — a Slack thread
 | `dismiss-resolve` | A mechanical nit with nothing for a human to confirm | (public) Short reply, then resolve. (local) Note it and skip. |
 | `clarify` | Ambiguous | (public) Reply with a specific question. (local) Record the question. |
 
-Draft a concrete response for every item — the actual reply text and, for a `fix`, a one-line description of the code change. Not a placeholder. **Materialize the plan with `Write`** to the repo's `review/` folder (create it if missing — and when you create the folder, tell the user it's new so they decide what to do with it; don't gitignore it automatically, since a persisted review trail can be intentional): `review/pr-<N>-comments-plan.md`. A plan composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat.
+**Materialize the returned plan with `Write`** to the repo's `review/` folder (create it if missing — and when you create the folder, tell the user it's new so they decide what to do with it; don't gitignore it automatically, since a persisted review trail can be intentional): `review/pr-<N>-comments-plan.md`. A plan that exists only in the subagent's reply or in thinking does not exist for the gate — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat. Record the plan as the subagent returned it: if you disagree with a categorization, don't silently reclassify — the disagreement is itself session knowledge — add a marked note (`session note: …`) to that item and let the user rule at the gate.
+
+If agent dispatch is unavailable (rare — e.g. this skill is already running at the subagent nesting depth limit): triage inline with the discipline the subagent would have applied — judge each item from the code and the reviewer's argument as they stand, restate the reviewer's point in its strongest form before classifying anything `pushback` — and carry a one-line independence caveat into the step 6 summary (never into posted replies).
 
 ### 3. Results gate
 
@@ -100,6 +99,7 @@ Report fixes (with commit hashes), replies and their state (public), recorded pu
 ## Boundaries
 
 - Never edit code, post a reply, or resolve a thread the user hasn't approved at the results gate.
+- Hand the triage subagent only the PR ref, the feedback items, the code, and off-platform source material — never this session's reasoning, intent, or debate about the change, and never a fork that inherits it.
 - Never resolve a `fix`, `pushback`, or `clarify` thread — only `dismiss-resolve` (public).
 - In public mode: never push to a branch other than the PR's head branch; never `--amend`, `--force`, or `--no-verify` unless the user explicitly asks.
 - In local mode: stay on the working tree, never post to or contact a review platform, and never push — surfacing changes to a remote is the user's call.
