@@ -42,6 +42,11 @@ SAMPLE_CAPABILITIES = [
         description="Autonomous QA agent that writes and runs test suites for Python and TypeScript projects",
         type="agent",
     ),
+    RegistryCapability(
+        name="protect-env-files",
+        description="Blocks Claude Code from editing or overwriting .env files and other environment secret files",
+        type="hook",
+    ),
 ]
 
 
@@ -194,6 +199,20 @@ class TestTypeFilter:
             assert result["name"] in {
                 "qa-automation-agent",
             }, f"Expected only agents, got {result['name']}"
+
+    def test_filter_hooks_only(
+        self,
+        capabilities_collection: Collection,
+    ) -> None:
+        results = query(
+            capabilities_collection,
+            "block edits to env files",
+            type_filter="hook",
+        )
+        for result in results:
+            assert result["name"] in {
+                "protect-env-files",
+            }, f"Expected only hooks, got {result['name']}"
 
     def test_filter_excludes_other_type(
         self,

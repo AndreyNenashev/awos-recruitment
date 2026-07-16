@@ -125,7 +125,7 @@ def resolve_agent_paths(
 def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
     """Load all capabilities from the registry at *registry_path*.
 
-    Scans three sub-trees:
+    Scans four sub-trees:
 
     * ``skills/*/SKILL.md`` -- YAML front matter is parsed with
       *python-frontmatter*; each entry becomes a capability with
@@ -135,6 +135,9 @@ def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
     * ``agents/*.md`` -- YAML front matter is parsed with
       *python-frontmatter*; each entry becomes a capability with
       ``type="agent"``.
+    * ``hooks/*/HOOK.md`` -- YAML front matter is parsed with
+      *python-frontmatter*; each entry becomes a capability with
+      ``type="hook"``.
 
     Entries that have no ``description`` (or an empty/whitespace-only
     description) are silently skipped.
@@ -151,6 +154,7 @@ def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
     capabilities.extend(_load_skills(root))
     capabilities.extend(_load_mcp_tools(root))
     capabilities.extend(_load_agents(root))
+    capabilities.extend(_load_hooks(root))
 
     return capabilities
 
@@ -191,6 +195,48 @@ def _load_skills(root: Path) -> list[RegistryCapability]:
                 name=name,
                 description=description,
                 type="skill",
+            )
+        )
+
+    return results
+
+
+def _load_hooks(root: Path) -> list[RegistryCapability]:
+    """Parse ``hooks/*/HOOK.md`` files and return hook capabilities."""
+    hooks_dir = root / "hooks"
+    results: list[RegistryCapability] = []
+
+    if not hooks_dir.is_dir():
+        return results
+
+    for entry in sorted(hooks_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+
+        hook_md = entry / "HOOK.md"
+        if not hook_md.exists():
+            continue
+
+        try:
+            post = frontmatter.load(str(hook_md))
+        except Exception:
+            logger.warning("Failed to parse front matter in %s", hook_md)
+            continue
+
+        metadata: dict = dict(post.metadata)
+        name = metadata.get("name")
+        description = metadata.get("description")
+
+        if not name or not isinstance(name, str):
+            continue
+        if not description or not isinstance(description, str) or not description.strip():
+            continue
+
+        results.append(
+            RegistryCapability(
+                name=name,
+                description=description,
+                type="hook",
             )
         )
 

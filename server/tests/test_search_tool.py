@@ -17,6 +17,7 @@ _REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "registry"
 _ALL_CAPS = load_registry(_REGISTRY_PATH)
 _SKILL_NAMES = {c.name for c in _ALL_CAPS if c.type == "skill"}
 _TOOL_NAMES = {c.name for c in _ALL_CAPS if c.type == "tool"}
+_HOOK_NAMES = {c.name for c in _ALL_CAPS if c.type == "hook"}
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +210,40 @@ async def test_search_type_filter_tool(mcp_client):
         assert item["name"] in _TOOL_NAMES, (
             f"Expected only tool names, but got: {item['name']}"
         )
+
+
+async def test_search_type_filter_hook(mcp_client):
+    """Filtering by type='hook' should return only hooks."""
+    result = await mcp_client.call_tool(
+        "search_capabilities", {"query": "block edits to env files", "type": "hook"}
+    )
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
+
+    # All returned results must be hooks.
+    for item in parsed:
+        assert item["name"] in _HOOK_NAMES, (
+            f"Expected only hook names, but got: {item['name']}"
+        )
+
+
+async def test_search_returns_protect_env_files_hook(mcp_client):
+    """A relevant query should surface the protect-env-files seed hook."""
+    result = await mcp_client.call_tool(
+        "search_capabilities",
+        {"query": "block edits to env files", "type": "hook"},
+    )
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
+
+    returned_names = {item["name"] for item in parsed}
+    assert "protect-env-files" in returned_names, (
+        f"Expected 'protect-env-files' in hook results, got: {returned_names}"
+    )
 
 
 # ---------------------------------------------------------------------------

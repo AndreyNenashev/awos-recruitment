@@ -12,6 +12,8 @@ from pydantic import ValidationError
 
 from awos_recruitment_mcp.models import (
     AgentMetadata,
+    HookEntry,
+    HookMetadata,
     McpDefinition,
     McpServerConfig,
     SkillMetadata,
@@ -184,6 +186,175 @@ def test_agent_optional_fields_default_none():
     )
     assert meta.skills is None, (
         f"Expected skills to be None, got {meta.skills}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# HookMetadata / HookEntry model tests
+# ---------------------------------------------------------------------------
+
+
+def test_valid_hook_metadata():
+    """A dict with valid name, description, and hooks should pass validation."""
+    meta = HookMetadata.model_validate(
+        {
+            "name": "protect-env-files",
+            "description": "Blocks edits to .env files",
+            "hooks": [
+                {"event": "PreToolUse", "matcher": "Edit|Write", "timeout": 10}
+            ],
+        }
+    )
+    assert meta.name == "protect-env-files", (
+        f"Expected name 'protect-env-files', got '{meta.name}'"
+    )
+    assert len(meta.hooks) == 1, (
+        f"Expected exactly 1 hook entry, got {len(meta.hooks)}"
+    )
+    entry = meta.hooks[0]
+    assert entry.event == "PreToolUse", (
+        f"Expected event 'PreToolUse', got '{entry.event}'"
+    )
+    assert entry.matcher == "Edit|Write", (
+        f"Expected matcher 'Edit|Write', got '{entry.matcher}'"
+    )
+    assert entry.timeout == 10, (
+        f"Expected timeout 10, got {entry.timeout}"
+    )
+
+
+def test_hook_entry_optional_fields_default_none():
+    """matcher and timeout should default to None when omitted."""
+    entry = HookEntry.model_validate({"event": "SessionStart"})
+    assert entry.matcher is None, (
+        f"Expected matcher to be None, got '{entry.matcher}'"
+    )
+    assert entry.timeout is None, (
+        f"Expected timeout to be None, got {entry.timeout}"
+    )
+
+
+def test_hook_missing_name():
+    """Omitting the required 'name' field should raise ValidationError."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookMetadata.model_validate(
+            {
+                "description": "No name provided",
+                "hooks": [{"event": "PreToolUse"}],
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "name" in error_fields, (
+        f"Expected a validation error for 'name', got errors for: {error_fields}"
+    )
+
+
+def test_hook_invalid_name_chars():
+    """Names with uppercase letters or spaces should be rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookMetadata.model_validate(
+            {
+                "name": "My Hook!",
+                "description": "Bad name",
+                "hooks": [{"event": "PreToolUse"}],
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "name" in error_fields, (
+        f"Expected a validation error for 'name', got errors for: {error_fields}"
+    )
+
+
+def test_hook_invalid_event_value():
+    """An unknown event literal should raise a validation error."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookMetadata.model_validate(
+            {
+                "name": "bad-event",
+                "description": "Has an unknown event",
+                "hooks": [{"event": "NotARealEvent"}],
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert any("event" in f for f in error_fields), (
+        f"Expected a validation error for 'event', got errors for: {error_fields}"
+    )
+
+
+def test_hook_empty_hooks_list():
+    """An empty hooks list should raise a validation error (min_length=1)."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookMetadata.model_validate(
+            {
+                "name": "empty-hooks",
+                "description": "No hook entries",
+                "hooks": [],
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "hooks" in error_fields, (
+        f"Expected a validation error for 'hooks', got errors for: {error_fields}"
+    )
+
+
+def test_hook_zero_timeout_rejected():
+    """A timeout of zero should be rejected (gt=0)."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookEntry.model_validate({"event": "PreToolUse", "timeout": 0})
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "timeout" in error_fields, (
+        f"Expected a validation error for 'timeout', got errors for: {error_fields}"
+    )
+
+
+def test_hook_negative_timeout_rejected():
+    """A negative timeout should be rejected (gt=0)."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookEntry.model_validate({"event": "PreToolUse", "timeout": -5})
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "timeout" in error_fields, (
+        f"Expected a validation error for 'timeout', got errors for: {error_fields}"
+    )
+
+
+def test_hook_metadata_extra_fields_rejected():
+    """An unknown field on HookMetadata should be rejected (extra='forbid')."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookMetadata.model_validate(
+            {
+                "name": "good-hook",
+                "description": "Has extra field",
+                "hooks": [{"event": "PreToolUse"}],
+                "surprise": True,
+            }
+        )
+    messages = [e["msg"] for e in exc_info.value.errors()]
+    assert any("extra" in m.lower() for m in messages), (
+        f"Expected an 'extra fields not permitted' error, got: {messages}"
+    )
+
+
+def test_hook_entry_extra_fields_rejected():
+    """An unknown field on HookEntry should be rejected (extra='forbid')."""
+    with pytest.raises(ValidationError) as exc_info:
+        HookEntry.model_validate(
+            {"event": "PreToolUse", "command": "echo hi"}
+        )
+    messages = [e["msg"] for e in exc_info.value.errors()]
+    assert any("extra" in m.lower() for m in messages), (
+        f"Expected an 'extra fields not permitted' error, got: {messages}"
     )
 
 

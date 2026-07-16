@@ -53,8 +53,8 @@ mcp = FastMCP(
     version=config.version,
     instructions=(
         "This server provides AI coding assistants with a discovery engine "
-        "for skills, agents, and tools. Use the search_capabilities tool to "
-        "find capabilities matching a natural language query."
+        "for skills, agents, tools, and hooks. Use the search_capabilities "
+        "tool to find capabilities matching a natural language query."
     ),
     lifespan=lifespan,
 )

@@ -71,7 +71,7 @@ def query(
         query_text: Free-text search query.
         n_results: Maximum number of results to request from ChromaDB.
         type_filter: If provided, restrict results to this capability type
-            (``"skill"`` or ``"tool"``).
+            (``"skill"``, ``"tool"``, ``"agent"``, or ``"hook"``).
         threshold: Minimum similarity score (0--100). Results scoring below
             this value are excluded.
 

@@ -76,6 +76,33 @@ def _write_agent(
     (agents_dir / filename).write_text(content)
 
 
+def _write_hook(
+    registry_root: Path,
+    folder_name: str,
+    name: str,
+    description: str | None = None,
+    body: str = "# Hook\n\nInjection instructions.\n",
+) -> None:
+    """Write a HOOK.md file inside ``registry_root/hooks/<folder_name>/``."""
+    hook_dir = registry_root / "hooks" / folder_name
+    hook_dir.mkdir(parents=True, exist_ok=True)
+
+    front_matter_lines = [f"name: {name}"]
+    if description is not None:
+        front_matter_lines.append(f"description: {description}")
+    front_matter_lines.extend(
+        [
+            "hooks:",
+            "  - event: PreToolUse",
+            "    matcher: Edit|Write",
+            "    timeout: 10",
+        ]
+    )
+
+    content = "---\n" + "\n".join(front_matter_lines) + "\n---\n\n" + body
+    (hook_dir / "HOOK.md").write_text(content)
+
+
 # ---------------------------------------------------------------------------
 # Correct parsing
 # ---------------------------------------------------------------------------
@@ -128,6 +155,17 @@ class TestCorrectParsing:
         assert cap.name == "qa-agent"
         assert cap.description == "QA automation agent"
         assert cap.type == "agent"
+
+    def test_hook_fields(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "protect-env", "protect-env", "Blocks .env edits")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 1
+        cap = caps[0]
+        assert cap.name == "protect-env"
+        assert cap.description == "Blocks .env edits"
+        assert cap.type == "hook"
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +248,43 @@ class TestSkipWithoutDescription:
             f"Expected 0 capabilities (agent whitespace description), got {len(caps)}"
         )
 
+    def test_hook_no_description_field(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "no-desc", "no-desc-hook", description=None)
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook missing description), got {len(caps)}"
+        )
+
+    def test_hook_empty_description(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "empty-desc", "empty-desc-hook", description="")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook empty description), got {len(caps)}"
+        )
+
+    def test_hook_whitespace_description(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "ws-desc", "ws-desc-hook", description="   ")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook whitespace description), got {len(caps)}"
+        )
+
+    def test_hook_missing_hook_md(self, tmp_path: Path) -> None:
+        # A hooks/ subdirectory with no HOOK.md is silently skipped.
+        (tmp_path / "hooks" / "no-file").mkdir(parents=True)
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook dir without HOOK.md), got {len(caps)}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Type inference
@@ -246,6 +321,15 @@ class TestTypeInference:
             f"Expected all types to be 'agent', got {[c.type for c in caps]}"
         )
 
+    def test_hooks_have_type_hook(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "delta", "delta-hook", "Delta description")
+
+        caps = load_registry(tmp_path)
+
+        assert all(c.type == "hook" for c in caps), (
+            f"Expected all types to be 'hook', got {[c.type for c in caps]}"
+        )
+
     def test_mixed_types(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
@@ -257,16 +341,17 @@ class TestTypeInference:
             f"Expected both 'skill' and 'tool' types, got {types}"
         )
 
-    def test_mixed_types_all_three(self, tmp_path: Path) -> None:
+    def test_mixed_types_all_four(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
         _write_agent(tmp_path, "a1.md", "a1-agent", "Agent desc")
+        _write_hook(tmp_path, "h1", "h1-hook", "Hook desc")
 
         caps = load_registry(tmp_path)
 
         types = {c.type for c in caps}
-        assert types == {"skill", "tool", "agent"}, (
-            f"Expected 'skill', 'tool', and 'agent' types, got {types}"
+        assert types == {"skill", "tool", "agent", "hook"}, (
+            f"Expected 'skill', 'tool', 'agent', and 'hook' types, got {types}"
         )
 
 
@@ -326,12 +411,16 @@ def test_real_registry_loads_all_capabilities() -> None:
     skill_caps = [c for c in caps if c.type == "skill"]
     tool_caps = [c for c in caps if c.type == "tool"]
     agent_caps = [c for c in caps if c.type == "agent"]
+    hook_caps = [c for c in caps if c.type == "hook"]
 
     assert len(skill_caps) >= 1, "Registry should contain at least one skill"
     assert len(tool_caps) >= 1, "Registry should contain at least one tool"
     assert len(agent_caps) >= 1, "Registry should contain at least one agent"
+    assert len(hook_caps) >= 1, "Registry should contain at least one hook"
 
     for cap in caps:
         assert cap.name, "Every capability must have a name"
         assert cap.description, "Every capability must have a description"
-        assert cap.type in ("skill", "tool", "agent"), f"Unknown type: {cap.type}"
+        assert cap.type in ("skill", "tool", "agent", "hook"), (
+            f"Unknown type: {cap.type}"
+        )
