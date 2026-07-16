@@ -122,6 +122,43 @@ def resolve_agent_paths(
     return found, not_found
 
 
+def resolve_hook_paths(
+    names: list[str],
+    registry_path: str | Path,
+) -> tuple[list[Path], list[str]]:
+    """Resolve hook names to their directory paths under *registry_path*.
+
+    For each name in *names*, checks whether ``hooks/<name>/`` exists as a
+    directory under the registry root.  Names that resolve to an existing
+    directory are collected into the first element of the returned tuple;
+    names that do not match any directory end up in the second element.
+
+    Args:
+        names: Hook directory names to look up.
+        registry_path: Root directory of the registry.
+
+    Returns:
+        A ``(found_paths, not_found)`` tuple where *found_paths* is a list of
+        :class:`~pathlib.Path` objects pointing to the matched hook
+        directories and *not_found* is a list of names with no corresponding
+        directory.
+    """
+    root = Path(registry_path)
+    hooks_dir = root / "hooks"
+
+    found: list[Path] = []
+    not_found: list[str] = []
+
+    for name in names:
+        hook_path = hooks_dir / name
+        if hook_path.is_dir():
+            found.append(hook_path)
+        else:
+            not_found.append(name)
+
+    return found, not_found
+
+
 def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
     """Load all capabilities from the registry at *registry_path*.
 

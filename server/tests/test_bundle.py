@@ -1,4 +1,4 @@
-"""Tests for the POST /bundle/skills, POST /bundle/mcp, and POST /bundle/agents endpoints."""
+"""Tests for the POST /bundle/skills, /bundle/mcp, /bundle/agents, and /bundle/hooks endpoints."""
 
 from __future__ import annotations
 
@@ -611,6 +611,204 @@ async def test_agent_invalid_name_pattern_returns_400(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/agents",
+            json={"names": ["UPPERCASE"]},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
+    )
+
+
+# ===========================================================================
+# POST /bundle/hooks
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# Valid request
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_valid_request_returns_200(asgi_app):
+    """POST a single valid hook name and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_hook_valid_request_returns_tar_gz(asgi_app):
+    """POST a single valid hook name and verify the archive contains HOOK.md and the entrypoint."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = tar.getnames()
+
+    assert "protect-env-files/HOOK.md" in names, (
+        f"Expected HOOK.md in archive, got {names}"
+    )
+    assert "protect-env-files/protect-env-files.sh" in names, (
+        f"Expected entrypoint .sh in archive, got {names}"
+    )
+
+
+async def test_hook_entrypoint_carries_exec_bit(asgi_app):
+    """The bundled entrypoint .sh tar member must retain its executable bit."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        member = tar.getmember("protect-env-files/protect-env-files.sh")
+
+    assert member.mode & 0o111, (
+        f"Expected entrypoint to carry the exec bit, got mode {oct(member.mode)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Partial matches
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_partial_matches_returns_200(asgi_app):
+    """POST a mix of existing and nonexistent hook names and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files", "nonexistent-hook"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_hook_partial_matches_contains_only_existing(asgi_app):
+    """POST a mix of existing and nonexistent hook names; archive contains only the existing one."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files", "nonexistent-hook"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = tar.getnames()
+
+    assert any(n.startswith("protect-env-files/") for n in names), (
+        f"Expected protect-env-files entries in archive, got {names}"
+    )
+    assert not any(n.startswith("nonexistent-hook/") for n in names), (
+        f"Did not expect nonexistent-hook entries in archive, got {names}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# All not-found
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_all_not_found_returns_200(asgi_app):
+    """POST hook names that do not match any hook and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["does-not-exist"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_hook_all_not_found_returns_empty_archive(asgi_app):
+    """POST hook names that do not match any hook and verify the archive is empty."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": ["does-not-exist"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        members = tar.getmembers()
+
+    assert len(members) == 0, (
+        f"Expected empty archive, got {len(members)} members: {[m.name for m in members]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Empty names list
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_empty_names_returns_400(asgi_app):
+    """POST an empty hook names list and verify HTTP 400."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": []},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Names exceeding limit
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_too_many_names_returns_400(asgi_app):
+    """POST 21 hook names (exceeding the limit of 20) and verify HTTP 400."""
+    names = [f"hook-{i}" for i in range(21)]
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
+            json={"names": names},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Invalid name pattern
+# ---------------------------------------------------------------------------
+
+
+async def test_hook_invalid_name_pattern_returns_400(asgi_app):
+    """POST a hook name with uppercase letters (invalid pattern) and verify HTTP 400."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/hooks",
             json={"names": ["UPPERCASE"]},
         )
 

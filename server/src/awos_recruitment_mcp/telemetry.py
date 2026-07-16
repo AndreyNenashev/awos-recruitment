@@ -88,7 +88,8 @@ def track_install(capability_name: str, capability_type: str) -> None:
 
     Args:
         capability_name: The name of the installed capability.
-        capability_type: One of ``"skill"``, ``"agent"``, or ``"mcp_server"``.
+        capability_type: One of ``"skill"``, ``"agent"``, ``"hook"``, or
+            ``"mcp_server"``.
     """
     if _client is None:
         return

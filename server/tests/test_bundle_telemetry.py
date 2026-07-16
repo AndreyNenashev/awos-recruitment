@@ -182,3 +182,58 @@ async def test_bundle_agents_tracks_only_found_in_mixed_request(
         )
 
     mock_track_install.assert_called_once_with("testing-expert", "agent")
+
+
+# ---------------------------------------------------------------------------
+# POST /bundle/hooks — telemetry
+# ---------------------------------------------------------------------------
+
+
+@patch("awos_recruitment_mcp.server.track_install")
+async def test_bundle_hooks_tracks_found_capabilities(
+    mock_track_install,
+    asgi_app,
+) -> None:
+    """POST /bundle/hooks should call track_install for each found hook."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files"]},
+        )
+
+    mock_track_install.assert_called_once_with("protect-env-files", "hook")
+
+
+@patch("awos_recruitment_mcp.server.track_install")
+async def test_bundle_hooks_does_not_track_not_found(
+    mock_track_install,
+    asgi_app,
+) -> None:
+    """POST /bundle/hooks should not call track_install for not-found names."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(
+            "/bundle/hooks",
+            json={"names": ["nonexistent-hook"]},
+        )
+
+    mock_track_install.assert_not_called()
+
+
+@patch("awos_recruitment_mcp.server.track_install")
+async def test_bundle_hooks_tracks_only_found_in_mixed_request(
+    mock_track_install,
+    asgi_app,
+) -> None:
+    """POST /bundle/hooks with a mix of found and not-found names should only
+    track the found ones.
+    """
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(
+            "/bundle/hooks",
+            json={"names": ["protect-env-files", "nonexistent-hook"]},
+        )
+
+    mock_track_install.assert_called_once_with("protect-env-files", "hook")

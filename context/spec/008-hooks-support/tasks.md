@@ -31,11 +31,11 @@ After this slice, CI blocks invalid hook definitions: bad frontmatter, name mism
 
 After this slice, the server ships hook directories (exec bit intact) and emits `capability_installed` events with `type="hook"`.
 
-- [ ] **Sub-task 3.1:** Add `resolve_hook_paths(names, registry_path)` to `registry.py` (mirror `resolve_skill_paths`, directory check). **[Agent: python-expert]**
-- [ ] **Sub-task 3.2:** Add the `POST /bundle/hooks` route to `server.py` mirroring `/bundle/skills`: `BundleRequest` validation (400 on failure), dedupe, resolve, `track_install(name, "hook")` per found hook, archive `<name>/HOOK.md` + `<name>/<name>.sh` + `scripts/` files filtered by `_ALLOWED_SCRIPT_EXTENSIONS`, return `application/gzip`. Update the `track_install` docstring in `telemetry.py`. **[Agent: python-expert]**
-- [ ] **Sub-task 3.3:** Add tests: `/bundle/hooks` cases in `test_bundle.py` (archive contents incl. **entry mode carries exec bit**, partial/not-found, 400 on >20 or invalid names); telemetry assertions in `test_bundle_telemetry.py` and `test_telemetry.py` (`track_install(name, "hook")`). **[Agent: python-expert]**
-- [ ] **Sub-task 3.4:** Run `just test -v`. Then start the server and `curl -X POST /bundle/hooks` with `protect-env-files`; extract the tar.gz and verify file layout and `ls -l` shows the entrypoint executable. **[Agent: qa-tester]**
-- [ ] **Sub-task 3.5:** Git commit. **[Agent: general-purpose]**
+- [x] **Sub-task 3.1:** Add `resolve_hook_paths(names, registry_path)` to `registry.py` (mirror `resolve_skill_paths`, directory check). **[Agent: python-expert]**
+- [x] **Sub-task 3.2:** Add the `POST /bundle/hooks` route to `server.py` mirroring `/bundle/skills`: `BundleRequest` validation (400 on failure), dedupe, resolve, `track_install(name, "hook")` per found hook, archive `<name>/HOOK.md` + `<name>/<name>.sh` + `scripts/` files filtered by `_ALLOWED_SCRIPT_EXTENSIONS`, return `application/gzip`. Update the `track_install` docstring in `telemetry.py`. **[Agent: python-expert]**
+- [x] **Sub-task 3.3:** Add tests: `/bundle/hooks` cases in `test_bundle.py` (archive contents incl. **entry mode carries exec bit**, partial/not-found, 400 on >20 or invalid names); telemetry assertions in `test_bundle_telemetry.py` and `test_telemetry.py` (`track_install(name, "hook")`). **[Agent: python-expert]**
+- [x] **Sub-task 3.4:** Run `just test -v`. Then start the server and `curl -X POST /bundle/hooks` with `protect-env-files`; extract the tar.gz and verify file layout and `ls -l` shows the entrypoint executable. **[Agent: qa-tester]**
+- [x] **Sub-task 3.5:** Git commit. **[Agent: general-purpose]**
 
 ---
 
