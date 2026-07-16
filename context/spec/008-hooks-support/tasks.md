@@ -43,11 +43,11 @@ After this slice, the server ships hook directories (exec bit intact) and emits 
 
 After this slice, `npx @provectusinc/awos-recruitment hook protect-env-files` downloads and installs the hook directory (silent skip on existing, exit 1 only on not-found). Settings injection lands in Slice 5.
 
-- [ ] **Sub-task 4.1:** Register the `hook` subcommand in `cli/src/cli.ts` (USAGE line, unknown-command guard, `case "hook"`); add `HookDefinition`/`HookFrontmatter` to `lib/types.ts`. **[Agent: typescript-expert]**
-- [ ] **Sub-task 4.2:** Create `cli/src/commands/hook.ts` with Phase 1 of `installHooks(names)`: `downloadBundle(.../bundle/hooks)`, per-name not-found / skipped (existing dir, silent) / installed (`fs.cpSync` recursive), summary print, exit 1 only on not-found (the `agent.ts` rule). **[Agent: typescript-expert]**
-- [ ] **Sub-task 4.3:** Add Phase-1 tests in `commands/__tests__/hook.test.ts` (vitest conventions: mocked `downloadBundle`, real temp dirs, cwd spy): install, silent skip exit 0, not-found exit 1, `.claude/hooks/` creation, and the **exec-bit round-trip regression test** (tar entry mode `0o755` → extract → copy → `mode & 0o111`). **[Agent: typescript-expert]**
-- [ ] **Sub-task 4.4:** Run `just test-cli` and `just build-cli`. Then with the server running locally, run the built CLI (`AWOS_SERVER_URL=http://localhost:8000`) in a temp project and verify `.claude/hooks/protect-env-files/` contents and executable entrypoint; re-run to confirm silent skip. **[Agent: qa-tester]**
-- [ ] **Sub-task 4.5:** Git commit. **[Agent: general-purpose]**
+- [x] **Sub-task 4.1:** Register the `hook` subcommand in `cli/src/cli.ts` (USAGE line, unknown-command guard, `case "hook"`); add `HookDefinition`/`HookFrontmatter` to `lib/types.ts`. **[Agent: typescript-expert]**
+- [x] **Sub-task 4.2:** Create `cli/src/commands/hook.ts` with Phase 1 of `installHooks(names)`: `downloadBundle(.../bundle/hooks)`, per-name not-found / skipped (existing dir, silent) / installed (`fs.cpSync` recursive), summary print, exit 1 only on not-found (the `agent.ts` rule). **[Agent: typescript-expert]**
+- [x] **Sub-task 4.3:** Add Phase-1 tests in `commands/__tests__/hook.test.ts` (vitest conventions: mocked `downloadBundle`, real temp dirs, cwd spy): install, silent skip exit 0, not-found exit 1, `.claude/hooks/` creation, and the **exec-bit round-trip regression test** (tar entry mode `0o755` → extract → copy → `mode & 0o111`). **[Agent: typescript-expert]**
+- [x] **Sub-task 4.4:** Run `just test-cli` and `just build-cli`. Then with the server running locally, run the built CLI (`AWOS_SERVER_URL=http://localhost:8000`) in a temp project and verify `.claude/hooks/protect-env-files/` contents and executable entrypoint; re-run to confirm silent skip. **[Agent: qa-tester]**
+- [x] **Sub-task 4.5:** Git commit. **[Agent: general-purpose]**
 
 ---
 

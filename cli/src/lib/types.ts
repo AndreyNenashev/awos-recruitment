@@ -11,6 +11,18 @@ export interface AgentFrontmatter {
   skills?: string[];
 }
 
+export interface HookDefinition {
+  event: string;
+  matcher?: string;
+  timeout?: number;
+}
+
+export interface HookFrontmatter {
+  name: string;
+  description: string;
+  hooks: HookDefinition[];
+}
+
 export interface McpServerConfig {
   [key: string]: unknown;
 }

@@ -13,9 +13,15 @@ import { CliError, NetworkError } from "../errors.js";
  *
  * @param files - An object mapping relative file paths (e.g. "skill-a/SKILL.md")
  *                to their string content.
+ * @param modes - Optional map of the same relative paths to octal file modes
+ *                (e.g. `0o755`). `tar` records the on-disk mode of each staged
+ *                file, so this lets a test assert exec-bit round-trips.
  * @returns A gzipped tar buffer ready to be served as a mock response body.
  */
-function createTarGzBuffer(files: Record<string, string>): Buffer {
+function createTarGzBuffer(
+  files: Record<string, string>,
+  modes: Record<string, number> = {},
+): Buffer {
   // Write the files to a staging directory, create a tar from it, then gzip.
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "tar-staging-"));
   const topLevelEntries: string[] = [];
@@ -25,6 +31,11 @@ function createTarGzBuffer(files: Record<string, string>): Buffer {
       const abs = path.join(staging, relPath);
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       fs.writeFileSync(abs, content, "utf-8");
+
+      const mode = modes[relPath];
+      if (mode !== undefined) {
+        fs.chmodSync(abs, mode);
+      }
 
       const topDir = relPath.split("/")[0]!;
       if (!topLevelEntries.includes(topDir)) {
@@ -171,5 +182,40 @@ describe("downloadBundle", () => {
     expect(fs.existsSync(path.join(result, "__bundle.tar"))).toBe(
       false,
     );
+  });
+
+  // -----------------------------------------------------------------------
+  // 5. Exec-bit round-trip: an entry archived with mode 0o755 keeps its
+  //    executable bit after real downloadBundle extraction.
+  // -----------------------------------------------------------------------
+  it("preserves the executable bit of an entry through tar extraction", async () => {
+    const tarGz = createTarGzBuffer(
+      {
+        "protect-env-files/HOOK.md": "# Protect Env Files",
+        "protect-env-files/protect-env-files.sh":
+          "#!/usr/bin/env bash\nexit 0\n",
+      },
+      { "protect-env-files/protect-env-files.sh": 0o755 },
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(mockResponse(200, tarGz)),
+    );
+
+    const result = await downloadBundle(
+      "http://localhost:9999/bundle/hooks",
+      ["protect-env-files"],
+    );
+
+    tempDirs.push(result);
+
+    const script = path.join(
+      result,
+      "protect-env-files",
+      "protect-env-files.sh",
+    );
+    expect(fs.existsSync(script)).toBe(true);
+    expect(fs.statSync(script).mode & 0o111).not.toBe(0);
   });
 });
