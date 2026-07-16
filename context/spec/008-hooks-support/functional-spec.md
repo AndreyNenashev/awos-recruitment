@@ -1,7 +1,7 @@
 # Functional Specification: Claude Code Hooks Support
 
 - **Roadmap Item:** Support Claude Code hooks in the registry and installer — index and serve hook definitions with structured metadata, install discovered hooks into the project, and inject their configuration into `.claude/settings.json`.
-- **Status:** Approved
+- **Status:** Completed
 - **Author:** Andrey Nenashev
 
 ---
@@ -42,10 +42,10 @@ Hooks differ from existing capability types in one important way: installation i
 - The existing `search_capabilities` MCP tool must return hooks in search results using the **same result shape** as other capability types (name, description, score), and must accept `type="hook"` as a filter value.
 
   **Acceptance Criteria:**
-  - [ ] A hook directory placed in `registry/hooks/` with a valid `HOOK.md` is loaded by the registry loader with `type="hook"`.
-  - [ ] Hooks appear in semantic search results when a relevant natural language query is submitted (e.g., "block edits to env files" returns `protect-env-files`).
-  - [ ] Filtering by `type="hook"` returns only hook results.
-  - [ ] Hooks without a description are silently skipped during loading (consistent with skills).
+  - [x] A hook directory placed in `registry/hooks/` with a valid `HOOK.md` is loaded by the registry loader with `type="hook"`.
+  - [x] Hooks appear in semantic search results when a relevant natural language query is submitted (e.g., "block edits to env files" returns `protect-env-files`).
+  - [x] Filtering by `type="hook"` returns only hook results.
+  - [x] Hooks without a description are silently skipped during loading (consistent with skills).
 
 ### 2.2. Hook Metadata Validation
 
@@ -55,11 +55,11 @@ Hooks differ from existing capability types in one important way: installation i
 - Validation behavior must be consistent with the existing skill, MCP, and agent validation pipeline (same CLI, same CI workflow, same output formats).
 
   **Acceptance Criteria:**
-  - [ ] A valid hook (correct frontmatter, valid events, existing executable entrypoint) passes `just validate-registry`.
-  - [ ] A hook with an unknown `event` value fails validation.
-  - [ ] A hook whose entrypoint script `<name>.sh` is missing or not executable fails validation.
-  - [ ] A hook with an empty `hooks` list fails validation.
-  - [ ] CI blocks merges that introduce invalid hook definitions.
+  - [x] A valid hook (correct frontmatter, valid events, existing executable entrypoint) passes `just validate-registry`.
+  - [x] A hook with an unknown `event` value fails validation.
+  - [x] A hook whose entrypoint script `<name>.sh` is missing or not executable fails validation.
+  - [x] A hook with an empty `hooks` list fails validation.
+  - [x] CI blocks merges that introduce invalid hook definitions.
 
 ### 2.3. Hook Bundling
 
@@ -68,9 +68,9 @@ Hooks differ from existing capability types in one important way: installation i
 - If a requested hook is not found in the registry, it is excluded from the archive (not an error), and the CLI handles reporting.
 
   **Acceptance Criteria:**
-  - [ ] `POST /bundle/hooks` with valid hook names returns a tar.gz archive containing the requested hook directories with all their files.
-  - [ ] Requesting a non-existent hook name does not cause a server error; the name is simply absent from the archive.
-  - [ ] The request is rejected if it contains more than 20 names or names with invalid format.
+  - [x] `POST /bundle/hooks` with valid hook names returns a tar.gz archive containing the requested hook directories with all their files.
+  - [x] Requesting a non-existent hook name does not cause a server error; the name is simply absent from the archive.
+  - [x] The request is rejected if it contains more than 20 names or names with invalid format.
 
 ### 2.4. Hook Installation via CLI
 
@@ -90,13 +90,13 @@ Hooks differ from existing capability types in one important way: installation i
   - Hooks not found in the registry.
 
   **Acceptance Criteria:**
-  - [ ] Running `npx @provectusinc/awos-recruitment hook protect-env-files` installs the directory to `.claude/hooks/protect-env-files/` and adds the corresponding entries under `hooks.PreToolUse` in `.claude/settings.json`.
-  - [ ] If `.claude/settings.json` does not exist, it is created containing only the injected hook configuration.
-  - [ ] If `.claude/settings.json` exists with unrelated settings and hooks, those are preserved unchanged after injection.
-  - [ ] Re-running the same install command changes nothing and reports all items as skipped (idempotent).
-  - [ ] If the hook files exist but the settings entry is missing, re-running the command re-injects the settings entry.
-  - [ ] If a requested hook name does not exist in the registry, it is reported as "not found" in the summary.
-  - [ ] Installed scripts retain executable permissions.
+  - [x] Running `npx @provectusinc/awos-recruitment hook protect-env-files` installs the directory to `.claude/hooks/protect-env-files/` and adds the corresponding entries under `hooks.PreToolUse` in `.claude/settings.json`.
+  - [x] If `.claude/settings.json` does not exist, it is created containing only the injected hook configuration.
+  - [x] If `.claude/settings.json` exists with unrelated settings and hooks, those are preserved unchanged after injection.
+  - [x] Re-running the same install command changes nothing and reports all items as skipped (idempotent).
+  - [x] If the hook files exist but the settings entry is missing, re-running the command re-injects the settings entry.
+  - [x] If a requested hook name does not exist in the registry, it is reported as "not found" in the summary.
+  - [x] Installed scripts retain executable permissions.
 
 ### 2.5. Usage Telemetry
 
@@ -105,7 +105,7 @@ Hooks differ from existing capability types in one important way: installation i
   - Hook installations via `POST /bundle/hooks` emit install events with `type="hook"`.
 
   **Acceptance Criteria:**
-  - [ ] A `POST /bundle/hooks` request emits an install telemetry event per requested hook, consistent with the existing bundle telemetry behavior.
+  - [x] A `POST /bundle/hooks` request emits an install telemetry event per requested hook, consistent with the existing bundle telemetry behavior.
 
 ---
 

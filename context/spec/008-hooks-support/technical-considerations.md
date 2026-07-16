@@ -1,7 +1,7 @@
 # Technical Specification: Claude Code Hooks Support
 
 - **Functional Specification:** `context/spec/008-hooks-support/functional-spec.md`
-- **Status:** Approved
+- **Status:** Completed
 - **Author(s):** Andrey Nenashev
 
 ---
