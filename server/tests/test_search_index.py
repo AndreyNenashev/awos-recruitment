@@ -43,7 +43,7 @@ SAMPLE_CAPABILITIES = [
         type="agent",
     ),
     RegistryCapability(
-        name="docs-that-work-gate",
+        name="protect-env",
         description="Blocks Claude Code from editing or overwriting .env files and other environment secret files",
         type="hook",
     ),
@@ -164,6 +164,7 @@ class TestTypeFilter:
             "programming",
             type_filter="skill",
         )
+        assert len(results) > 0, "Expected at least one skill result"
         for result in results:
             assert result["name"] in {
                 "python-development",
@@ -180,6 +181,7 @@ class TestTypeFilter:
             "database management",
             type_filter="tool",
         )
+        assert len(results) > 0, "Expected at least one tool result"
         for result in results:
             assert result["name"] in {
                 "postgresql-database",
@@ -195,6 +197,7 @@ class TestTypeFilter:
             "testing automation",
             type_filter="agent",
         )
+        assert len(results) > 0, "Expected at least one agent result"
         for result in results:
             assert result["name"] in {
                 "qa-automation-agent",
@@ -209,9 +212,10 @@ class TestTypeFilter:
             "block edits to env files",
             type_filter="hook",
         )
+        assert len(results) > 0, "Expected at least one hook result"
         for result in results:
             assert result["name"] in {
-                "docs-that-work-gate",
+                "protect-env",
             }, f"Expected only hooks, got {result['name']}"
 
     def test_filter_excludes_other_type(
