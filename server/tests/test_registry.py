@@ -79,25 +79,39 @@ def _write_agent(
 def _write_hook(
     registry_root: Path,
     folder_name: str,
-    name: str,
-    description: str | None = None,
+    name: str | None = None,
+    description: str | None = "A hook description.",
     body: str = "# Hook\n\nInjection instructions.\n",
+    hooks_yaml: str = (
+        "hooks:\n"
+        "  - event: PreToolUse\n"
+        "    matcher: Edit|Write\n"
+        "    timeout: 10"
+    ),
+    frontmatter_name: str | None = None,
 ) -> None:
-    """Write a HOOK.md file inside ``registry_root/hooks/<folder_name>/``."""
+    """Write a HOOK.md file inside ``registry_root/hooks/<folder_name>/``.
+
+    Defaults produce frontmatter that is valid against ``HookMetadata`` and
+    whose ``name`` matches *folder_name*, so ``_write_hook(root, "x")`` alone
+    yields a loadable hook. Pass ``frontmatter_name`` to write a ``name``
+    that differs from the directory (to exercise the mismatch skip), or
+    ``hooks_yaml`` to override the ``hooks:`` block (to exercise the
+    invalid-hooks-field skip).
+    """
     hook_dir = registry_root / "hooks" / folder_name
     hook_dir.mkdir(parents=True, exist_ok=True)
 
-    front_matter_lines = [f"name: {name}"]
+    effective_name = (
+        frontmatter_name
+        if frontmatter_name is not None
+        else (name if name is not None else folder_name)
+    )
+
+    front_matter_lines = [f"name: {effective_name}"]
     if description is not None:
         front_matter_lines.append(f"description: {description}")
-    front_matter_lines.extend(
-        [
-            "hooks:",
-            "  - event: PreToolUse",
-            "    matcher: Edit|Write",
-            "    timeout: 10",
-        ]
-    )
+    front_matter_lines.append(hooks_yaml)
 
     content = "---\n" + "\n".join(front_matter_lines) + "\n---\n\n" + body
     (hook_dir / "HOOK.md").write_text(content)
@@ -287,6 +301,33 @@ class TestSkipWithoutDescription:
 
 
 # ---------------------------------------------------------------------------
+# Hook frontmatter validation (HookMetadata)
+# ---------------------------------------------------------------------------
+
+
+class TestHookMetadataValidation:
+    """_load_hooks routes frontmatter through HookMetadata and skips invalid entries."""
+
+    def test_load_hooks_skips_invalid_hooks_field(self, tmp_path: Path) -> None:
+        """hooks: [] and hooks-as-string must not be indexed."""
+        _write_hook(tmp_path, "empty-hooks", hooks_yaml="hooks: []")
+        _write_hook(tmp_path, "string-hooks", hooks_yaml="hooks: PreToolUse")
+        _write_hook(tmp_path, "good-hook")  # helper's default valid frontmatter
+
+        capabilities = load_registry(tmp_path)
+
+        names = {c.name for c in capabilities if c.type == "hook"}
+        assert names == {"good-hook"}
+
+    def test_load_hooks_skips_directory_name_mismatch(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "dir-name", frontmatter_name="other-name")
+
+        capabilities = load_registry(tmp_path)
+
+        assert not [c for c in capabilities if c.type == "hook"]
+
+
+# ---------------------------------------------------------------------------
 # Type inference
 # ---------------------------------------------------------------------------
 
@@ -322,7 +363,7 @@ class TestTypeInference:
         )
 
     def test_hooks_have_type_hook(self, tmp_path: Path) -> None:
-        _write_hook(tmp_path, "delta", "delta-hook", "Delta description")
+        _write_hook(tmp_path, "delta", "delta", "Delta description")
 
         caps = load_registry(tmp_path)
 
@@ -345,7 +386,7 @@ class TestTypeInference:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
         _write_agent(tmp_path, "a1.md", "a1-agent", "Agent desc")
-        _write_hook(tmp_path, "h1", "h1-hook", "Hook desc")
+        _write_hook(tmp_path, "h1", "h1", "Hook desc")
 
         caps = load_registry(tmp_path)
 

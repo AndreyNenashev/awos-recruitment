@@ -7,8 +7,10 @@ from pathlib import Path
 
 import frontmatter
 import yaml
+from pydantic import ValidationError as PydanticValidationError
 
 from awos_recruitment_mcp.models import RegistryCapability
+from awos_recruitment_mcp.models.hook_metadata import HookMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -256,23 +258,35 @@ def _load_hooks(root: Path) -> list[RegistryCapability]:
 
         try:
             post = frontmatter.load(str(hook_md))
-        except Exception:
-            logger.warning("Failed to parse front matter in %s", hook_md)
+        except Exception as exc:
+            logger.warning(
+                "Failed to parse front matter in %s", hook_md, exc_info=exc
+            )
             continue
 
-        metadata: dict = dict(post.metadata)
-        name = metadata.get("name")
-        description = metadata.get("description")
-
-        if not name or not isinstance(name, str):
+        # Hooks are executable configuration — unlike skills/agents, the
+        # frontmatter is validated in full here so a malformed hook is
+        # absent from the catalog instead of breaking at install time.
+        try:
+            meta = HookMetadata.model_validate(dict(post.metadata))
+        except PydanticValidationError as exc:
+            logger.warning("Skipping hook %s: invalid metadata: %s", hook_md, exc)
             continue
-        if not description or not isinstance(description, str) or not description.strip():
+
+        if meta.name != entry.name:
+            logger.warning(
+                "Skipping hook %s: frontmatter name '%s' does not match "
+                "directory name '%s'",
+                hook_md,
+                meta.name,
+                entry.name,
+            )
             continue
 
         results.append(
             RegistryCapability(
-                name=name,
-                description=description,
+                name=meta.name,
+                description=meta.description,
                 type="hook",
             )
         )
