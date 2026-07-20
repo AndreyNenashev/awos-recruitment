@@ -219,3 +219,51 @@ def test_garbage_stdin_passes(repo: Path) -> None:
     """Unreadable payloads fail open."""
     result = run_hook(repo, "not json at all")
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
+
+
+def test_description_mentioning_commit_does_not_trigger(repo: Path) -> None:
+    """A non-commit command whose description mentions 'git commit' passes."""
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+    payload = json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": "ls -la",
+                "description": "List files before I git commit them",
+            },
+        }
+    )
+
+    result = run_hook(repo, payload)
+
+    assert result.returncode == 0, (
+        f"Description text must not trigger the gate: {result.stderr}"
+    )
+
+
+def test_commit_command_with_description_still_gated(repo: Path) -> None:
+    """A real commit command still blocks when a description is present."""
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+    payload = json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": 'git add -A && git commit -m "x"',
+                "description": "Commit the change",
+            },
+        }
+    )
+
+    result = run_hook(repo, payload)
+
+    assert result.returncode == 2, "Real commit must still be gated"
+
+
+def test_payload_without_command_key_passes(repo: Path) -> None:
+    """A payload with no tool_input.command fails open."""
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+    payload = json.dumps({"tool_name": "Bash", "tool_input": {}})
+
+    result = run_hook(repo, payload)
+
+    assert result.returncode == 0

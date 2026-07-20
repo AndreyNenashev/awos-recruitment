@@ -72,9 +72,10 @@ The entrypoint is pure POSIX shell using only `git`, `grep`, `sed`, and
 - The matcher is tool-name based (`Bash`); commits made outside Claude Code
   (your own terminal, CI) are not gated — this is an agent guardrail, not a
   git hook.
-- Commit detection is a substring scan of the command; a command merely
-  *mentioning* `git commit` proceeds into the precise git checks, which is
-  harmless (clean tree → allow).
+- Commit detection is a substring scan of the extracted `tool_input.command`
+  string only — sibling payload fields (e.g. `description`) are never
+  scanned. A command merely *mentioning* `git commit` (e.g. in an echo)
+  still proceeds into the precise git checks.
 - `git commit` invoked through wrappers the scan cannot see (aliases,
   scripts, `make release`) is not gated.
 

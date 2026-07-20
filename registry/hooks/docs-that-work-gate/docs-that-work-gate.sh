@@ -29,10 +29,21 @@ set -eu
 
 input=$(cat)
 
-# Only gate commit commands. The payload is the raw tool-call JSON; a
-# substring scan is enough here (a command merely mentioning "git commit"
-# false-positives into the precise checks below, which is harmless).
-printf '%s' "$input" | grep -qE 'git([[:space:]]+-[^[:space:]]+)*[[:space:]]+commit' || exit 0
+# Only gate commit commands. The payload is the raw tool-call JSON; extract
+# the tool_input.command string value so sibling fields (description) cannot
+# false-positive the scan. The sed pattern captures a JSON string value with
+# its escapes kept as-is (\" etc.); the first "command" key wins. -E (POSIX
+# extended regex, already used by the grep below) is required for the
+# alternation: BSD/macOS sed's basic-regex \| is not alternation — only
+# GNU sed treats it that way — so a BRE version of this pattern silently
+# fails to match on macOS and would fail the gate open on every commit. If
+# extraction yields nothing (schema change, exotic escaping) the gate fails
+# open per the header contract.
+cmd=$(printf '%s' "$input" \
+    | sed -n -E 's/.*"command"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p' \
+    | head -n 1)
+[ -n "$cmd" ] || exit 0
+printf '%s' "$cmd" | grep -qE 'git([[:space:]]+-[^[:space:]]+)*[[:space:]]+commit' || exit 0
 
 top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$top" || exit 0
