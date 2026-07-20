@@ -26,7 +26,10 @@ from awos_recruitment_mcp.registry import (
     resolve_skill_paths,
 )
 from awos_recruitment_mcp.search_index import build_index
-from awos_recruitment_mcp.validate import _ALLOWED_SCRIPT_EXTENSIONS
+from awos_recruitment_mcp.validate import (
+    _ALLOWED_HOOK_SCRIPT_EXTENSIONS,
+    _ALLOWED_SCRIPT_EXTENSIONS,
+)
 
 config = Config.from_env()
 
@@ -203,7 +206,7 @@ async def bundle_hooks(request: Request) -> Response:
     requested hook name to its on-disk directory, then streams back a
     gzip-compressed tar archive containing ``<name>/HOOK.md``, the
     ``<name>/<name>.sh`` entrypoint, and any ``<name>/scripts/*`` files
-    filtered by :data:`_ALLOWED_SCRIPT_EXTENSIONS` for each found hook.
+    filtered by :data:`_ALLOWED_HOOK_SCRIPT_EXTENSIONS` for each found hook.
 
     On-disk file modes are preserved in the archive, so the entrypoint's
     executable bit travels with the bundle.
@@ -245,7 +248,7 @@ async def bundle_hooks(request: Request) -> Response:
                 for sub_file in sorted(scripts_dir.iterdir()):
                     if not sub_file.is_file() or sub_file.name.startswith("."):
                         continue
-                    if sub_file.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
+                    if sub_file.suffix not in _ALLOWED_HOOK_SCRIPT_EXTENSIONS:
                         continue
                     tar.add(
                         str(sub_file),

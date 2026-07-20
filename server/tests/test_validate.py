@@ -768,11 +768,11 @@ def test_validate_hook_rejects_bad_scripts_extension(tmp_path: Path):
 
 
 def test_validate_hook_allows_scripts_with_allowed_extension(tmp_path: Path):
-    """A scripts/ file with an allowed extension (.py) should pass."""
+    """A scripts/ file with an allowed extension (.sh) should pass."""
     hook_dir = _make_hook_dir(tmp_path, "good-script", "scripts has a good file")
     scripts = hook_dir / "scripts"
     scripts.mkdir()
-    (scripts / "helper.py").write_text("print('hi')\n")
+    (scripts / "helper.sh").write_text("#!/bin/sh\necho hi\n")
 
     results = validate_hooks(tmp_path)
 
@@ -781,6 +781,31 @@ def test_validate_hook_allows_scripts_with_allowed_extension(tmp_path: Path):
         f"Expected the result to be valid, got errors: "
         f"{[e.message for e in results[0].errors]}"
     )
+
+
+def test_hook_scripts_sh_helper_is_allowed(tmp_path: Path) -> None:
+    """Hooks' scripts/ allows flat .sh helper files (pure POSIX sh policy)."""
+    hook = _make_hook_dir(tmp_path, "my-hook", "A hook with a sh helper.")
+    scripts = hook / "scripts"
+    scripts.mkdir()
+    (scripts / "helper.sh").write_text("#!/bin/sh\n")
+
+    results = validate_hooks(tmp_path)
+
+    assert all(r.valid for r in results), [e for r in results for e in r.errors]
+
+
+def test_hook_scripts_python_helper_is_rejected(tmp_path: Path) -> None:
+    """Hooks' scripts/ rejects .py — hooks are .sh only, unlike skills."""
+    hook = _make_hook_dir(tmp_path, "my-hook", "A hook with a python helper.")
+    scripts = hook / "scripts"
+    scripts.mkdir()
+    (scripts / "helper.py").write_text("print()\n")
+
+    results = validate_hooks(tmp_path)
+
+    errors = [e.message for r in results for e in r.errors]
+    assert any(".sh" in m for m in errors), errors
 
 
 def test_validate_hooks_missing_dir_returns_no_results(tmp_path: Path):

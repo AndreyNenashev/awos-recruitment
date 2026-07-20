@@ -27,6 +27,11 @@ _ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
 _ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references", "scripts"})
 _ALLOWED_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".js", ".ts", ".py"})
 
+# Hooks must stay pure POSIX sh with zero runtime dependencies (see
+# registry/hooks/CLAUDE.md) — helper scripts included. Skills keep the
+# .js/.ts/.py allowlist above.
+_ALLOWED_HOOK_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".sh"})
+
 # Layout rules for a hook directory. Kept in lockstep with what the
 # /bundle/hooks endpoint ships: HOOK.md (metadata + injection docs), the
 # required per-hook entrypoint ``<name>.sh``, and flat helper files under
@@ -674,8 +679,8 @@ def validate_hooks(registry_path: Path) -> list[ValidationResult]:
                         )
                     )
                     continue
-                # scripts/ only allows .js, .ts, .py files.
-                if script_child.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
+                # scripts/ only allows .sh files — hooks are pure POSIX sh.
+                if script_child.suffix not in _ALLOWED_HOOK_SCRIPT_EXTENSIONS:
                     errors.append(
                         ValidationError(
                             file=relative_path,
@@ -683,7 +688,7 @@ def validate_hooks(registry_path: Path) -> list[ValidationResult]:
                             message=(
                                 f"File '{child.name}/{script_child.name}' has "
                                 f"disallowed extension — scripts/ only "
-                                f"allows {', '.join(sorted(_ALLOWED_SCRIPT_EXTENSIONS))}"
+                                f"allows {', '.join(sorted(_ALLOWED_HOOK_SCRIPT_EXTENSIONS))}"
                             ),
                         )
                     )

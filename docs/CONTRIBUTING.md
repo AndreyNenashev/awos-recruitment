@@ -193,7 +193,7 @@ Create a directory under `registry/hooks/` containing a `HOOK.md` file and an ex
 registry/hooks/my-hook-name/
 ├── HOOK.md               # Required — front matter + injection docs
 ├── my-hook-name.sh       # Required — executable entrypoint
-└── scripts/              # Optional — helper files (.py, .js, .ts only)
+└── scripts/              # Optional — helper files (.sh only)
 ```
 
 `HOOK.md` starts with YAML front matter:
@@ -243,7 +243,7 @@ Every hook must ship an executable script named `<hook-name>.sh` next to `HOOK.m
 - It **must carry the executable bit** (`chmod +x my-hook-name.sh`). Git records the file mode, so the bit survives commits, bundling, and installation. Validation fails on a missing or non-executable entrypoint.
 - Claude Code passes the event payload to the script on **stdin as JSON**. The script signals its decision via exit codes (e.g. exit `2` blocks a tool call on `PreToolUse`).
 - **Multi-event hooks** declare several entries in the `hooks` list but still ship a single entrypoint — branch on the `hook_event_name` field from the stdin JSON to handle each event.
-- Helper files go under `scripts/` — only flat `.js`, `.py`, and `.ts` files are allowed there; anything else fails validation and is dropped from the install bundle.
+- Helper files go under `scripts/` — hooks allow only flat `.sh` files there (hooks are pure POSIX sh with zero runtime dependencies); anything else fails validation and is dropped from the install bundle.
 
 > **POSIX shell note:** v1 assumes a POSIX shell is available. Windows users need Git Bash or a similar environment to run hook entrypoints.
 
@@ -285,7 +285,7 @@ The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this mer
 - `name` matching the directory name
 - Non-empty markdown body (the injection docs are mandatory content)
 - An existing, executable `<name>.sh` entrypoint
-- Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.js`/`.py`/`.ts` files under `scripts/` are allowed
+- Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.sh` files under `scripts/` are allowed
 
 ### Example
 
