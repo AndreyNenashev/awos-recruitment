@@ -11,8 +11,9 @@
 # first (the reference would otherwise be a dead pointer).
 #
 # Ownership rule: each changed file belongs to the NEAREST ancestor directory
-# containing CLAUDE.md or README.md. Repo-root docs only own files that sit
-# at the root itself, so a root README does not tax every commit.
+# containing CLAUDE.md or README.md; EVERY such doc present in that directory
+# must be fresh. Repo-root docs only own files that sit at the root itself,
+# so a root README does not tax every commit.
 #
 # Loop prevention (worst case two blocks per commit, never a deadlock):
 #   1. A doc file with pending changes counts as fresh — once Claude updates

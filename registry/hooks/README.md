@@ -8,8 +8,9 @@ Each hook is a directory named after the hook, containing a `HOOK.md` (metadata 
 
 ```text
 registry/hooks/<hook-name>/
-├── HOOK.md                  # front matter + docs + manual injection fragment
-└── <hook-name>.sh   # executable entrypoint (chmod +x, committed)
+├── HOOK.md              # front matter + docs + manual injection fragment
+├── <hook-name>.sh       # executable entrypoint (chmod +x, committed)
+└── scripts/             # optional flat .sh helpers (see CONTRIBUTING.md)
 ```
 
 `HOOK.md` front matter declares *when* the hook fires — never *what command runs* (the command is always derived from the name):
@@ -46,8 +47,11 @@ just test
 
 ```bash
 just serve                                  # start the registry server
+# in a second terminal — just serve blocks the foreground
 AWOS_SERVER_URL=http://localhost:8000 \
   npx @provectusinc/awos-recruitment hook <name>   # install into the current project
 ```
 
 Re-running the install is idempotent; it never overwrites existing files or settings entries.
+
+Hook entries are written to the project's shared `.claude/settings.json` deliberately — a gate a team adopts should apply to every teammate after the settings commit merges. Use your project's code review of that commit as the checkpoint.

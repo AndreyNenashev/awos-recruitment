@@ -285,7 +285,7 @@ The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this mer
 - `name` matching the directory name
 - Non-empty markdown body (the injection docs are mandatory content)
 - An existing, executable `<name>.sh` entrypoint
-- Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.sh` files under `scripts/` are allowed
+- Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.sh` files under `scripts/` are allowed (README.md is registry-local documentation — it validates but is not part of the install bundle)
 
 ### Example
 

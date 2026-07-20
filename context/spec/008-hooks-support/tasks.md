@@ -4,6 +4,11 @@
 
 ## Slice 1: Hooks are discoverable — seed hook loads and appears in semantic search
 
+> **Superseded during this branch:** Slice 1 originally shipped a seed hook
+> `protect-env-files` (added in b2ef900, replaced in 4d98465). The registry
+> hook at head is `docs-that-work-gate`; the sub-tasks below describe the
+> seed hook as built at the time and are kept as a historical record.
+
 After this slice, `registry/hooks/protect-env-files/` exists, the server loads it with `type="hook"`, and `search_capabilities` returns it (including with the `type="hook"` filter). Bundling and validation come later; the server remains fully functional.
 
 - [x] **Sub-task 1.1:** Create the seed hook `registry/hooks/protect-env-files/`: `HOOK.md` (frontmatter: `name`, `description`, `hooks: [{event: PreToolUse, matcher: Edit|Write, timeout: 10}]`; body: what it does + manual injection instructions with the exact `settings.json` fragment) and executable `protect-env-files.sh` (reads tool-call JSON from stdin, exits 2 to block when the target path matches `.env` patterns). **[Agent: python-expert]**

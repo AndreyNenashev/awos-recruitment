@@ -16,8 +16,10 @@ the code it describes. Before Claude Code runs a `Bash` command containing
 `git commit`, the hook inspects the pending changes (staged, unstaged, and
 untracked — the whole `git status`). Every changed file is mapped to its
 **owning documentation**: the nearest ancestor directory containing a
-`CLAUDE.md` or `README.md`. If any owning doc file was *not* itself updated,
-the commit is **blocked** (exit code `2`) with a message instructing Claude
+`CLAUDE.md` or `README.md`. **Every** doc file present in that directory must
+be fresh — a directory carrying both a `CLAUDE.md` and a `README.md` requires
+both to be updated (or acknowledged). If any owning doc file was *not* itself
+updated, the commit is **blocked** (exit code `2`) with a message instructing Claude
 to review those docs with the **docs-that-work skill**, stage the updates,
 and re-run the commit.
 
@@ -47,9 +49,11 @@ npx @provectusinc/awos-recruitment hook docs-that-work-gate
 ## How it works
 
 - **Ownership rule:** each changed file belongs to the *nearest* ancestor
-  directory containing `CLAUDE.md` or `README.md`. Repo-root docs only own
-  files that sit at the root itself — a root `README.md` does not tax every
-  commit in the repository.
+  directory containing `CLAUDE.md` or `README.md`. **Every** doc file present
+  in that directory must be fresh — a directory carrying both a `CLAUDE.md`
+  and a `README.md` requires both to be updated (or acknowledged). Repo-root
+  docs only own files that sit at the root itself — a root `README.md` does
+  not tax every commit in the repository.
 - **Freshness rule:** an owning doc file counts as fresh when it has pending
   changes of its own. Once Claude updates it, the retried commit passes.
 - **Loop prevention** (worst case two blocks per commit, never a deadlock):
