@@ -3,7 +3,7 @@ name: pr-review
 description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's PR on the hosting platform and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
 ---
 
-<!-- No `context: fork`: forked skills run as subagents, which cannot dispatch the Agent tool (the review engines in step 2) or AskUserQuestion (the results gate in step 5). For isolation from other work, invoke this skill in a dedicated session instead. -->
+<!-- No `context: fork`: a forked skill runs as a subagent, and subagents cannot use AskUserQuestion — the results gate in step 5 depends on it. (The Agent tool is not the constraint: subagents can dispatch nested subagents, so the step 2 engines would run fine.) For isolation from other work, invoke this skill in a dedicated session instead. -->
 
 # Author a Code Review
 
@@ -32,33 +32,14 @@ Review voice and formatting rules are in [references/house-style.md](references/
 ## Workflow
 
 ```
-- [ ] 0. Bias gate: flag a contaminated session before reviewing
 - [ ] 1. Gather the change and context
 - [ ] 2. Find issues (code-review + applicable pr-review-toolkit agents)
-- [ ] 3. Reconcile (public: against existing comments; local: skip)
+- [ ] 3. Triage in a fresh subagent (merge, discipline; public: reconcile)
 - [ ] 4. Draft in house style: summary, architectural notes, inline findings
 - [ ] 5. Results gate: print the draft and ask — back with sources / proceed / change
 - [ ] 6. Deliver (public: draft review; local: review file)
 - [ ] 7. Summarize; loop on re-review (public)
 ```
-
-### 0. Bias gate
-
-A review is worth only as much as its independence. Before anything else, inspect **this conversation** for contamination — evidence you'd be reviewing work you helped shape:
-
-- you wrote, edited, or fixed any of the code under review in this session;
-- you designed, planned, or debated the change here, or addressed review feedback on it;
-- you already drafted, summarized, or argued a position on this change — your judgment is anchored to it.
-
-If any apply, stop and say which one, then ask with `AskUserQuestion`:
-
-- **Fresh session** (recommended) — you can't open one yourself, so hand off: end the turn by printing the exact invocation to carry over (`/pr-review <args>`, plus any constraints from this conversation worth keeping) and tell the user to run it after `/clear` or in a new session. Don't try to simulate it with a headless `claude -p` call — that runs without the interactive gates this skill depends on.
-- **Proceed** — run the workflow normally, in-session knowledge and all. The user may have run the review here deliberately because the conversation led to it; respect that.
-- **Proceed, quarantine session knowledge** — run the workflow but treat your in-session knowledge as untrusted: re-derive findings from the diff and the engines' output, not from what you remember intending, and carry a one-line independence caveat into the step 7 summary (never into the posted review).
-
-A clean conversation — or one whose only relation to the change is this review — passes silently; don't ask.
-
-A long session of unrelated work isn't bias, but it competes for attention; if context is already strained, recommend the fresh session for that reason instead.
 
 ### 1. Gather the change and context
 
@@ -68,12 +49,24 @@ A long session of unrelated work isn't bias, but it competes for attention; if c
 
 ### 2. Find issues
 
-Follow [references/analysis.md](references/analysis.md) — the same engines work on a PR diff or a local diff. Run the `code-review` plugin's confidence-scored sweep and dispatch the `pr-review-toolkit` agents that match what the diff changed. Merge and dedupe into one findings list, carrying each finding's confidence and source forward. Apply the false-positive discipline there: a confident finding is not a correct finding.
+Follow [references/analysis.md](references/analysis.md) — the same engines work on a PR diff or a local diff. Run the `code-review` plugin's confidence-scored sweep and dispatch the `pr-review-toolkit` agents that match what the diff changed. Collect both engines' raw findings with each one's confidence and source; the merge, the false-positive discipline, and reconciliation all happen inside step 3's triage subagent, not here.
 
-### 3. Reconcile
+### 3. Triage in a fresh subagent
 
-- **public:** cross-check each finding against the existing conversation — **including your own prior review passes**, which are the easiest to duplicate. Use `$ME`'s comment list from `fetch-existing-comments`: for any finding that lands on a `path:line` you already commented on, build on that thread with a `reply-to-thread` rather than opening a second one — even if that prior thread is resolved. Drop points already raised and settled — whether settled in a PR thread or off-platform (a decision the author and reviewer reached in Slack, a meeting, or a linked ticket); don't re-litigate what's already been agreed elsewhere. For any open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; keep only what's new. When the findings list is long, fan the mechanical checks out to parallel subagents — per finding: is it a duplicate of an existing thread, does it land on a `$ME`-commented `path:line`, is its line in the diff — each checking against the scratchpad and returning a verdict (a small/fast model suffices; it's matching, not judgment). The judgment calls — agree, build on, or push back — stay with you.
-- **local:** nothing to reconcile.
+A review is worth only as much as its independence, and the merge is where independence quietly dies: deciding which findings survive, and at what confidence, is exactly the judgment a session that wrote, planned, or debated this change would bend toward its own decisions. A model is a poor judge of its own anchoring, so don't self-assess independence; remove the need for it: triage runs in a **fresh subagent** that never sees this conversation, whether the session touched the change or not.
+
+Dispatch one triage subagent with the Agent tool (`subagent_type: "general-purpose"` — a fresh context; **not** `"fork"`, which inherits this conversation and defeats the isolation). Hand it exactly:
+
+- the diff and the repo checkout path;
+- both engines' raw findings — file, line, what, why, suggested fix, confidence, source;
+- **public:** the scratchpad from step 1 — open threads, settled points, `$ME`'s prior comments, each with `path:line` — plus any off-platform source material (verbatim or an extractive digest of what was decided, never your conclusions about the change);
+- the path to [references/analysis.md](references/analysis.md), with the instruction to apply its "Merge and carry forward" and "False-positive discipline" sections.
+
+Withhold everything else — what this session intended, designed, or argued about the change. The diff, the engines' output, and the recorded conversation are the subagent's whole world, so its verdicts can't be a defense of decisions it never saw.
+
+The subagent merges and dedupes both engines into one findings list, then applies the false-positive discipline — it has repo access, and the verification work there (`Read` the file, `Grep` the sibling artifact) is its job; for a long list it may fan the mechanical per-finding checks out to its own nested subagents (duplicate-of-thread, `$ME`-commented line, line-in-diff — matching, not judgment, so a small/fast model suffices). **Public:** it also reconciles against the scratchpad: for any finding on a `path:line` `$ME` already commented on, plan a `reply-to-thread` that builds on that thread rather than a second comment — even if the prior thread is resolved; for any open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; drop points already raised and settled — in a PR thread or off-platform — and keep only what's new. It returns the surviving findings (confidence and source intact) and the thread-reply plan. **Local:** same subagent, no scratchpad — nothing to reconcile.
+
+If agent dispatch is unavailable (rare — e.g. running at the subagent nesting depth limit, where the engines already degraded to the inline pass): merge, apply the discipline, and reconcile inline, re-deriving each verdict from the diff and the engines' output rather than from what you remember intending, and carry a one-line independence caveat into the step 7 summary (never into the posted review).
 
 ### 4. Draft in house style
 
@@ -116,6 +109,7 @@ Print what was delivered (the draft review URL and inline count, or the file pat
 ## Boundaries
 
 - Never post, submit, or save anything the user hasn't approved at the results gate.
+- Hand the triage subagent only the diff, the engines' findings, the recorded conversation, and the code — never this session's reasoning, intent, or debate about the change, and never a fork that inherits it.
 - Never delete or recreate an existing pending review draft without explicit approval — it may hold the user's own comments.
 - In public mode: comment only on lines in the PR diff; never resolve other people's threads; never auto-approve — the user chooses that verdict; default to a draft, not a direct submit.
 - Don't re-raise a point already settled — in a PR thread or off-platform — unless the new changes make it live again; don't post a finding you couldn't verify — lower its confidence and drop it.
