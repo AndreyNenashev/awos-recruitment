@@ -288,6 +288,23 @@ def test_hook_invalid_event_value():
     )
 
 
+def test_hook_entry_accepts_all_documented_events():
+    """Every event Claude Code documents must validate (regression: the
+    Literal used to carry only nine)."""
+    for event in [
+        "PreToolUse", "PostToolUse", "PostToolUseFailure", "PostToolBatch",
+        "PermissionRequest", "PermissionDenied", "UserPromptSubmit",
+        "UserPromptExpansion", "Notification", "MessageDisplay", "Stop",
+        "StopFailure", "SubagentStart", "SubagentStop", "TaskCreated",
+        "TaskCompleted", "TeammateIdle", "InstructionsLoaded", "ConfigChange",
+        "CwdChanged", "FileChanged", "WorktreeCreate", "WorktreeRemove",
+        "PreCompact", "PostCompact", "SessionStart", "SessionEnd", "Setup",
+        "Elicitation", "ElicitationResult",
+    ]:
+        entry = HookEntry(event=event)
+        assert entry.event == event
+
+
 def test_hook_empty_hooks_list():
     """An empty hooks list should raise a validation error (min_length=1)."""
     with pytest.raises(ValidationError) as exc_info:

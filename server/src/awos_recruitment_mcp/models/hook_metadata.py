@@ -6,17 +6,41 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# The nine lifecycle events Claude Code exposes to hooks.
+# The lifecycle events Claude Code exposes to hooks, per
+# https://code.claude.com/docs/en/hooks (last synced 2026-07-20). Keep this
+# list, cli/src/lib/types.ts HOOK_EVENTS, and registry/hooks/README.md in
+# sync when the reference page changes.
 HookEvent = Literal[
     "PreToolUse",
     "PostToolUse",
+    "PostToolUseFailure",
+    "PostToolBatch",
+    "PermissionRequest",
+    "PermissionDenied",
     "UserPromptSubmit",
+    "UserPromptExpansion",
     "Notification",
+    "MessageDisplay",
     "Stop",
+    "StopFailure",
+    "SubagentStart",
     "SubagentStop",
+    "TaskCreated",
+    "TaskCompleted",
+    "TeammateIdle",
+    "InstructionsLoaded",
+    "ConfigChange",
+    "CwdChanged",
+    "FileChanged",
+    "WorktreeCreate",
+    "WorktreeRemove",
     "PreCompact",
+    "PostCompact",
     "SessionStart",
     "SessionEnd",
+    "Setup",
+    "Elicitation",
+    "ElicitationResult",
 ]
 
 
@@ -25,9 +49,13 @@ class HookEntry(BaseModel):
 
     Attributes:
         event: The Claude Code lifecycle event this entry fires on. Must be
-            one of the nine supported events.
-        matcher: Optional tool-name matcher string (e.g. ``"Edit|Write"``).
-            Omitted for events that do not use matchers.
+            one of the documented Claude Code hook events.
+        matcher: Optional tool-name matcher. Claude Code treats a value made
+            only of letters, digits, ``_``, ``-``, spaces, ``,`` and ``|`` as
+            an exact name or ``|``/``,``-separated list (``"Edit|Write"``);
+            any other character makes it an UNANCHORED JavaScript regex.
+            Omitted for events that do not use matchers (Claude Code silently
+            ignores a matcher on such events).
         timeout: Optional per-command timeout in seconds; must be positive.
     """
 

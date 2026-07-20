@@ -19,7 +19,7 @@ registry/hooks/<hook-name>/
 name: <hook-name>          # kebab-case, must equal the directory name
 description: What it does and when it fires — this is what search matches on.
 hooks:
-  - event: PreToolUse              # one of the nine Claude Code hook events
+  - event: PreToolUse              # a documented Claude Code hook event (see models/hook_metadata.py)
     matcher: Bash                  # optional tool-name matcher
     timeout: 10                    # optional, seconds
 ---
