@@ -312,4 +312,28 @@ describe("mergeHookGroups", () => {
     expect(result).toEqual({ added: 0, skipped: 1 });
     expect(fs.readFileSync(settingsPath, "utf-8")).toBe(before);
   });
+
+  // -------------------------------------------------------------------------
+  // 7. Non-object root → CliError, file untouched
+  // -------------------------------------------------------------------------
+  describe("non-object settings root", () => {
+    it.each([
+      ["array", "[]"],
+      ["null", "null"],
+      ["number", "42"],
+    ])("throws CliError and never writes for %s root", (_label, raw) => {
+      const dir = makeTempDir("settings-merge-");
+      const settingsPath = path.join(dir, ".claude", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, raw, "utf-8");
+
+      expect(() =>
+        mergeHookGroups(settingsPath, "PreToolUse", [
+          group("cmd.sh", "Bash"),
+        ]),
+      ).toThrow("is not a JSON object");
+
+      expect(fs.readFileSync(settingsPath, "utf-8")).toBe(raw);
+    });
+  });
 });

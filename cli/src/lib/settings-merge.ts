@@ -34,7 +34,8 @@ export interface MergeResult {
  *
  * Behavior:
  * - `ENOENT` → start from an empty object `{}`; other fs errors re-thrown.
- * - Malformed JSON → throw `CliError` and NEVER overwrite the file.
+ * - Malformed JSON or a non-object root → throw `CliError` and NEVER
+ *   overwrite the file.
  * - Structure guards: `parsed.hooks` is coerced to `{}` if it is missing or not
  *   a plain (non-array) object; `parsed.hooks[event]` is coerced to `[]` if it
  *   is missing or not an array. All other top-level keys are round-tripped.
@@ -120,9 +121,13 @@ function readSettings(settingsPath: string): Record<string, unknown> {
     );
   }
 
-  // A JSON scalar/array at the root is not a settings object — guard it.
+  // A parseable-but-non-object root ([], null, a scalar) is still not a
+  // settings object; replacing it would destroy the user's file. Same
+  // contract as malformed JSON: throw, never write.
   if (!isPlainObject(parsed)) {
-    return {};
+    throw new CliError(
+      "Error: .claude/settings.json is not a JSON object.",
+    );
   }
 
   return parsed;
