@@ -10,10 +10,12 @@ Commands:
   skill   Install skills into .claude/skills/
   mcp     Install MCP servers into .mcp.json
   agent   Install agents into .claude/agents/
-  hook    Install hooks into .claude/hooks/`;
+  hook    Install hooks into .claude/hooks/ (prompts; --yes/-y to skip)`;
 
 export async function run(): Promise<void> {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const yes = rawArgs.includes("--yes") || rawArgs.includes("-y");
+  const args = rawArgs.filter((a) => a !== "--yes" && a !== "-y");
   const subcommand = args[0];
   const names = args.slice(1);
 
@@ -50,7 +52,7 @@ export async function run(): Promise<void> {
       await installAgents(names);
       break;
     case "hook":
-      await installHooks(names);
+      await installHooks(names, { yes });
       break;
   }
 }

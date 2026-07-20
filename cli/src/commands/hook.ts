@@ -1,7 +1,10 @@
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as readline from "node:readline";
 
 import { downloadBundle } from "../lib/download.js";
+import { CliError } from "../lib/errors.js";
 import { parseFrontmatter } from "../lib/frontmatter.js";
 import { resolveServerUrl } from "../lib/server-url.js";
 import {
@@ -30,7 +33,10 @@ import type { HookDefinition, InstallResult } from "../lib/types.js";
  * NOT change the exit code. A `CliError` from a malformed `settings.json`
  * propagates to the error boundary (exit 1), which is correct.
  */
-export async function installHooks(names: string[]): Promise<void> {
+export async function installHooks(
+  names: string[],
+  options: { yes?: boolean } = {},
+): Promise<void> {
   const serverUrl = resolveServerUrl();
 
   const tempDir = await downloadBundle(
@@ -40,6 +46,18 @@ export async function installHooks(names: string[]): Promise<void> {
 
   let results: InstallResult[];
   try {
+    // --- Consent gate: hooks execute automatically once armed — show what
+    // was actually downloaded (not registry metadata) and confirm before
+    // any file copy or settings write.
+    printHookSummaries(tempDir, names);
+    if (!options.yes) {
+      const confirmed = await confirmInstall();
+      if (!confirmed) {
+        process.stdout.write("Aborted — nothing was installed.\n");
+        return;
+      }
+    }
+
     // --- Phase 1: Install hook directories -----------------------------------
     results = processHooks(tempDir, names);
   } finally {
@@ -57,6 +75,65 @@ export async function installHooks(names: string[]): Promise<void> {
   if (hasNotFound) {
     process.exit(1);
   }
+}
+
+/**
+ * Prints, for each requested hook present in the bundle, the sha256 of its
+ * entrypoint script and the event bindings from its HOOK.md — the exact
+ * artifacts about to be armed. Names missing from the bundle are reported
+ * later by processHooks as not-found; they are skipped here.
+ */
+function printHookSummaries(tempDir: string, names: string[]): void {
+  for (const name of names) {
+    const entrypoint = path.join(tempDir, name, `${name}.sh`);
+    if (!fs.existsSync(entrypoint)) {
+      continue;
+    }
+    const sha256 = createHash("sha256")
+      .update(fs.readFileSync(entrypoint))
+      .digest("hex");
+    process.stdout.write(`Hook '${name}'\n  entrypoint sha256: ${sha256}\n`);
+
+    const entries = readHookEntries(tempDir, name);
+    for (const entry of entries ?? []) {
+      const details: string[] = [];
+      if (entry.matcher !== undefined) {
+        details.push(`matcher: ${entry.matcher}`);
+      }
+      if (entry.timeout !== undefined) {
+        details.push(`timeout: ${entry.timeout}s`);
+      }
+      const suffix = details.length > 0 ? ` (${details.join(", ")})` : "";
+      process.stdout.write(`  fires on: ${entry.event}${suffix}\n`);
+    }
+  }
+}
+
+/**
+ * Interactive confirmation. Non-TTY stdin cannot answer a prompt — fail
+ * closed with an instruction to pass --yes (scripts and agents must opt in
+ * explicitly).
+ */
+async function confirmInstall(): Promise<boolean> {
+  if (!process.stdin.isTTY) {
+    throw new CliError(
+      "Error: installing hooks arms scripts that run automatically. " +
+        "Re-run with --yes to confirm non-interactively.",
+    );
+  }
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  const answer = await new Promise<string>((resolve) =>
+    rl.question(
+      "Install these hooks and enable them in .claude/settings.json? [y/N] ",
+      resolve,
+    ),
+  );
+  rl.close();
+  const normalized = answer.trim().toLowerCase();
+  return normalized === "y" || normalized === "yes";
 }
 
 /**

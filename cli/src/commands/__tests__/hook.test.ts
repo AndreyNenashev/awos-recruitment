@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -16,6 +17,17 @@ const { mockDownloadBundle } = vi.hoisted(() => ({
 
 vi.mock("../../lib/download.js", () => ({
   downloadBundle: mockDownloadBundle,
+}));
+
+// Mock node:readline so the consent-gate decline test can script the prompt
+// answer. Tests that never reach the prompt (yes: true, or the non-TTY
+// throw) never call createInterface, so the mock is inert for them.
+const { mockCreateInterface } = vi.hoisted(() => ({
+  mockCreateInterface: vi.fn(),
+}));
+
+vi.mock("node:readline", () => ({
+  createInterface: mockCreateInterface,
 }));
 
 // ---------------------------------------------------------------------------
@@ -124,7 +136,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const installedDir = path.join(
       fakeCwd,
@@ -158,7 +170,7 @@ describe("installHooks", () => {
       false,
     );
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     expect(fs.existsSync(path.join(fakeCwd, ".claude", "hooks"))).toBe(
       true,
@@ -186,7 +198,7 @@ describe("installHooks", () => {
 
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     // Pre-existing marker file must be untouched.
     expect(fs.readFileSync(marker, "utf-8")).toBe("# Original");
@@ -206,7 +218,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["nonexistent"]);
+    await installHooks(["nonexistent"], { yes: true });
 
     expect(process.stderr.write).toHaveBeenCalledWith(
       "Error: hook 'nonexistent' not found.\n",
@@ -225,7 +237,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const installedScript = path.join(
       fakeCwd,
@@ -249,7 +261,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate", "nonexistent"]);
+    await installHooks(["docs-that-work-gate", "nonexistent"], { yes: true });
 
     // The found hook is installed.
     expect(
@@ -302,7 +314,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const settings = readSettings(fakeCwd);
     expect(settings).toEqual({
@@ -336,7 +348,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["session-hook"]);
+    await installHooks(["session-hook"], { yes: true });
 
     const settings = readSettings(fakeCwd);
     const grp = (settings.hooks as Record<string, unknown[]>)
@@ -363,7 +375,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["no-timeout-hook"]);
+    await installHooks(["no-timeout-hook"], { yes: true });
 
     const settings = readSettings(fakeCwd);
     const grp = (settings.hooks as Record<string, unknown[]>)
@@ -399,7 +411,7 @@ describe("installHooks", () => {
       "utf-8",
     );
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const settings = readSettings(fakeCwd);
     expect(settings.$schema).toBe("https://x/schema.json");
@@ -435,7 +447,7 @@ describe("installHooks", () => {
     const settingsPath = path.join(fakeCwd, ".claude", "settings.json");
     fs.writeFileSync(settingsPath, JSON.stringify({}, null, 2) + "\n", "utf-8");
 
-    await installHooks([name]);
+    await installHooks([name], { yes: true });
 
     const settings = readSettings(fakeCwd);
     const preToolUse = (settings.hooks as Record<string, unknown[]>)
@@ -458,7 +470,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const settingsPath = path.join(fakeCwd, ".claude", "settings.json");
     const afterFirst = fs.readFileSync(settingsPath, "utf-8");
@@ -469,7 +481,7 @@ describe("installHooks", () => {
     >;
     stdoutSpy.mockClear();
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     const afterSecond = fs.readFileSync(settingsPath, "utf-8");
     expect(afterSecond).toBe(afterFirst);
@@ -490,7 +502,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["docs-that-work-gate"]);
+    await installHooks(["docs-that-work-gate"], { yes: true });
 
     // Files installed, but no settings.json written.
     expect(
@@ -523,7 +535,7 @@ describe("installHooks", () => {
       const fakeCwd = makeTempDir("cwd-");
       vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-      await installHooks(["bad-hook"]);
+      await installHooks(["bad-hook"], { yes: true });
 
       expect(readSettingsRaw(fakeCwd)).not.toContain('"undefined"');
       expect(process.stderr.write).toHaveBeenCalledWith(
@@ -541,7 +553,7 @@ describe("installHooks", () => {
       const fakeCwd = makeTempDir("cwd-");
       vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-      await installHooks(["bad-hook"]);
+      await installHooks(["bad-hook"], { yes: true });
 
       expect(process.stderr.write).toHaveBeenCalledWith(
         "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
@@ -562,7 +574,7 @@ describe("installHooks", () => {
       const fakeCwd = makeTempDir("cwd-");
       vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-      await installHooks(["bad-hook"]);
+      await installHooks(["bad-hook"], { yes: true });
 
       expect(process.stderr.write).toHaveBeenCalledWith(
         "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
@@ -581,7 +593,7 @@ describe("installHooks", () => {
       const fakeCwd = makeTempDir("cwd-");
       vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-      await installHooks(["bad-hook"]);
+      await installHooks(["bad-hook"], { yes: true });
 
       expect(process.stderr.write).toHaveBeenCalledWith(
         "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
@@ -589,6 +601,129 @@ describe("installHooks", () => {
       expect(
         fs.existsSync(path.join(fakeCwd, ".claude", "settings.json")),
       ).toBe(false);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Consent gate: hooks execute automatically once armed, so installation
+  // must print what will be armed and require confirmation before any file
+  // copy or settings write.
+  // -----------------------------------------------------------------------
+  describe("consent gate", () => {
+    it("installs without prompting when yes is set", async () => {
+      const bundleDir = stageDocsGateBundle();
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["docs-that-work-gate"], { yes: true });
+
+      const installedEntrypoint = path.join(
+        fakeCwd,
+        ".claude",
+        "hooks",
+        "docs-that-work-gate",
+        "docs-that-work-gate.sh",
+      );
+      expect(fs.existsSync(installedEntrypoint)).toBe(true);
+    });
+
+    it("prints the entrypoint sha256 and events before installing", async () => {
+      const bundleDir = stageBundleWithFrontmatter(
+        "docs-that-work-gate",
+        "  - event: PreToolUse\n    matcher: Bash\n    timeout: 10\n",
+      );
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["docs-that-work-gate"], { yes: true });
+
+      // The installed script is a byte-for-byte copy of the downloaded
+      // entrypoint (fs.cpSync), so its hash matches what should have been
+      // printed before the copy happened.
+      const installedEntrypoint = path.join(
+        fakeCwd,
+        ".claude",
+        "hooks",
+        "docs-that-work-gate",
+        "docs-that-work-gate.sh",
+      );
+      const expected = createHash("sha256")
+        .update(fs.readFileSync(installedEntrypoint))
+        .digest("hex");
+
+      const stdoutSpy = process.stdout.write as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      const output = stdoutSpy.mock.calls.map((call) => call[0]).join("");
+      expect(output).toContain(expected);
+      expect(output).toContain("PreToolUse");
+      expect(output).toContain("timeout: 10s");
+    });
+
+    it("aborts cleanly, installing nothing, when the operator declines", async () => {
+      const bundleDir = stageDocsGateBundle();
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      // Pretend stdin is a TTY so confirmInstall prompts instead of
+      // throwing, and script the prompt to answer "n".
+      const originalIsTTY = process.stdin.isTTY;
+      process.stdin.isTTY = true;
+      mockCreateInterface.mockReturnValue({
+        question: (_query: string, cb: (answer: string) => void) => cb("n"),
+        close: vi.fn(),
+      });
+
+      try {
+        // Resolves normally — declining is not an error (exit 0).
+        await installHooks(["docs-that-work-gate"]);
+      } finally {
+        process.stdin.isTTY = originalIsTTY;
+      }
+
+      // Nothing written: no hook dir, no settings.json.
+      expect(
+        fs.existsSync(
+          path.join(fakeCwd, ".claude", "hooks", "docs-that-work-gate"),
+        ),
+      ).toBe(false);
+      expect(
+        fs.existsSync(path.join(fakeCwd, ".claude", "settings.json")),
+      ).toBe(false);
+
+      expect(process.stdout.write).toHaveBeenCalledWith(
+        "Aborted — nothing was installed.\n",
+      );
+    });
+
+    it("throws CliError without yes when stdin is not a TTY, writing nothing", async () => {
+      // vitest runs non-TTY, so no stubbing needed.
+      const bundleDir = stageDocsGateBundle();
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await expect(
+        installHooks(["docs-that-work-gate"]),
+      ).rejects.toThrow(/--yes/);
+
+      const installedEntrypoint = path.join(
+        fakeCwd,
+        ".claude",
+        "hooks",
+        "docs-that-work-gate",
+        "docs-that-work-gate.sh",
+      );
+      const settingsPath = path.join(fakeCwd, ".claude", "settings.json");
+      expect(fs.existsSync(installedEntrypoint)).toBe(false);
+      expect(fs.existsSync(settingsPath)).toBe(false);
     });
   });
 });
