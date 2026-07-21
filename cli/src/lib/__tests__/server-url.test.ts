@@ -16,7 +16,11 @@ describe("resolveServerUrl", () => {
     expect(resolveServerUrl()).toBe("https://staging.example.com");
   });
 
-  it.each(["http://localhost:8000", "http://127.0.0.1:8000"])(
+  it.each([
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://[::1]:8000",
+  ])(
     "accepts loopback http: %s",
     (url) => {
       process.env.AWOS_SERVER_URL = url;
