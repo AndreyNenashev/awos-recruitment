@@ -405,3 +405,34 @@ def test_filename_with_space_still_blocks(repo: Path) -> None:
 
     assert result.returncode == 2
     assert "server/CLAUDE.md" in result.stderr
+
+
+def test_non_ascii_path_still_finds_owning_doc(repo: Path) -> None:
+    """core.quotePath (default true) octal-escapes non-ASCII porcelain paths
+    ('caf\\303\\251/...'); ownership resolution must still find the owning doc
+    inside a unicode-named directory instead of failing open."""
+    unidir = repo / "café"
+    unidir.mkdir()
+    (unidir / "CLAUDE.md").write_text("café docs\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-m", "add café")
+    (unidir / "tool.py").write_text("code\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2
+    assert "café/CLAUDE.md" in result.stderr
+
+
+def test_non_ascii_untracked_edit_invalidates_marker(repo: Path) -> None:
+    """The untracked-content checksum must see unicode-named files: after a
+    block, editing an untracked 'café.py' must re-block, not honor the marker."""
+    (repo / "server" / "src" / "café.py").write_text("v1\n")
+    first = run_hook(repo)
+    assert first.returncode == 2
+
+    (repo / "server" / "src" / "café.py").write_text("v2 entirely different\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2

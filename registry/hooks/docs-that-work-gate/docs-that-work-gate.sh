@@ -56,7 +56,12 @@ git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
 # whole Bash command runs, so in `git add -A && git commit` nothing is staged
 # yet — the index alone cannot be trusted. Porcelain paths are repo-root
 # relative; rename entries take the new path; surrounding quotes stripped.
-status=$(git status --porcelain 2>/dev/null) || exit 0
+# core.quotePath=false emits non-ASCII bytes verbatim instead of C-quoted
+# octal escapes ("caf\303\251/…") that would never match a path on disk —
+# without it, unicode-named directories fail the gate open. Paths containing
+# whitespace are still quoted (handled by the strip below); literal quotes,
+# backslashes, and control chars in filenames remain escaped and unhandled.
+status=$(git -c core.quotePath=false status --porcelain 2>/dev/null) || exit 0
 [ -n "$status" ] || exit 0
 
 changed=$(printf '%s\n' "$status" \
@@ -77,7 +82,7 @@ checksum=$({
     git diff HEAD --no-color 2>/dev/null \
         || git diff --cached --no-color 2>/dev/null \
         || true
-    git ls-files --others --exclude-standard 2>/dev/null \
+    git -c core.quotePath=false ls-files --others --exclude-standard 2>/dev/null \
         | while IFS= read -r uf; do
               [ -f "$uf" ] && cksum "$uf" 2>/dev/null
           done

@@ -84,6 +84,11 @@ The entrypoint is pure POSIX shell using only `git`, `grep`, `sed`, and
   still proceeds into the precise git checks.
 - `git commit` invoked through wrappers the scan cannot see (aliases,
   scripts, `make release`) is not gated.
+- Path parsing reads `git status --porcelain` with `core.quotePath=false`,
+  so spaces and non-ASCII filenames resolve correctly; filenames containing
+  literal double quotes, backslashes, or control characters are still
+  C-quoted by git and not un-escaped — the gate may fail open for such
+  paths.
 
 ## Manual injection instructions
 
