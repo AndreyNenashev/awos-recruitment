@@ -76,6 +76,47 @@ def _write_agent(
     (agents_dir / filename).write_text(content)
 
 
+def _write_hook(
+    registry_root: Path,
+    folder_name: str,
+    name: str | None = None,
+    description: str | None = "A hook description.",
+    body: str = "# Hook\n\nInjection instructions.\n",
+    hooks_yaml: str = (
+        "hooks:\n"
+        "  - event: PreToolUse\n"
+        "    matcher: Edit|Write\n"
+        "    timeout: 10"
+    ),
+    frontmatter_name: str | None = None,
+) -> None:
+    """Write a HOOK.md file inside ``registry_root/hooks/<folder_name>/``.
+
+    Defaults produce frontmatter that is valid against ``HookMetadata`` and
+    whose ``name`` matches *folder_name*, so ``_write_hook(root, "x")`` alone
+    yields a loadable hook. Pass ``frontmatter_name`` to write a ``name``
+    that differs from the directory (to exercise the mismatch skip), or
+    ``hooks_yaml`` to override the ``hooks:`` block (to exercise the
+    invalid-hooks-field skip).
+    """
+    hook_dir = registry_root / "hooks" / folder_name
+    hook_dir.mkdir(parents=True, exist_ok=True)
+
+    effective_name = (
+        frontmatter_name
+        if frontmatter_name is not None
+        else (name if name is not None else folder_name)
+    )
+
+    front_matter_lines = [f"name: {effective_name}"]
+    if description is not None:
+        front_matter_lines.append(f"description: {description}")
+    front_matter_lines.append(hooks_yaml)
+
+    content = "---\n" + "\n".join(front_matter_lines) + "\n---\n\n" + body
+    (hook_dir / "HOOK.md").write_text(content)
+
+
 # ---------------------------------------------------------------------------
 # Correct parsing
 # ---------------------------------------------------------------------------
@@ -128,6 +169,17 @@ class TestCorrectParsing:
         assert cap.name == "qa-agent"
         assert cap.description == "QA automation agent"
         assert cap.type == "agent"
+
+    def test_hook_fields(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "protect-env", "protect-env", "Blocks .env edits")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 1
+        cap = caps[0]
+        assert cap.name == "protect-env"
+        assert cap.description == "Blocks .env edits"
+        assert cap.type == "hook"
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +262,85 @@ class TestSkipWithoutDescription:
             f"Expected 0 capabilities (agent whitespace description), got {len(caps)}"
         )
 
+    def test_hook_no_description_field(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "no-desc", "no-desc-hook", description=None)
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook missing description), got {len(caps)}"
+        )
+
+    def test_hook_empty_description(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "empty-desc", "empty-desc-hook", description="")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook empty description), got {len(caps)}"
+        )
+
+    def test_hook_whitespace_description(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "ws-desc", "ws-desc-hook", description="   ")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook whitespace description), got {len(caps)}"
+        )
+
+    def test_hook_missing_hook_md(self, tmp_path: Path) -> None:
+        # A hooks/ subdirectory with no HOOK.md is silently skipped.
+        (tmp_path / "hooks" / "no-file").mkdir(parents=True)
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (hook dir without HOOK.md), got {len(caps)}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Hook frontmatter validation (HookMetadata)
+# ---------------------------------------------------------------------------
+
+
+class TestHookMetadataValidation:
+    """_load_hooks routes frontmatter through HookMetadata and skips invalid entries."""
+
+    def test_load_hooks_skips_invalid_hooks_field(self, tmp_path: Path) -> None:
+        """hooks: [] and hooks-as-string must not be indexed."""
+        _write_hook(tmp_path, "empty-hooks", hooks_yaml="hooks: []")
+        _write_hook(tmp_path, "string-hooks", hooks_yaml="hooks: PreToolUse")
+        _write_hook(tmp_path, "good-hook")  # helper's default valid frontmatter
+
+        capabilities = load_registry(tmp_path)
+
+        names = {c.name for c in capabilities if c.type == "hook"}
+        assert names == {"good-hook"}
+
+    def test_load_hooks_skips_directory_name_mismatch(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "dir-name", frontmatter_name="other-name")
+
+        capabilities = load_registry(tmp_path)
+
+        assert not [c for c in capabilities if c.type == "hook"]
+
+    def test_load_hooks_skips_non_dict_frontmatter(self, tmp_path: Path) -> None:
+        """A HOOK.md whose frontmatter root is a YAML list must be skipped
+        with a warning, not crash the whole registry load."""
+        hook_dir = tmp_path / "hooks" / "list-root"
+        hook_dir.mkdir(parents=True)
+        (hook_dir / "HOOK.md").write_text(
+            "---\n- just\n- a\n- list\n---\n\n# Body\n"
+        )
+        _write_hook(tmp_path, "good-hook")
+
+        capabilities = load_registry(tmp_path)
+
+        names = {c.name for c in capabilities if c.type == "hook"}
+        assert names == {"good-hook"}
+
 
 # ---------------------------------------------------------------------------
 # Type inference
@@ -246,6 +377,15 @@ class TestTypeInference:
             f"Expected all types to be 'agent', got {[c.type for c in caps]}"
         )
 
+    def test_hooks_have_type_hook(self, tmp_path: Path) -> None:
+        _write_hook(tmp_path, "delta", "delta", "Delta description")
+
+        caps = load_registry(tmp_path)
+
+        assert all(c.type == "hook" for c in caps), (
+            f"Expected all types to be 'hook', got {[c.type for c in caps]}"
+        )
+
     def test_mixed_types(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
@@ -257,16 +397,17 @@ class TestTypeInference:
             f"Expected both 'skill' and 'tool' types, got {types}"
         )
 
-    def test_mixed_types_all_three(self, tmp_path: Path) -> None:
+    def test_mixed_types_all_four(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
         _write_agent(tmp_path, "a1.md", "a1-agent", "Agent desc")
+        _write_hook(tmp_path, "h1", "h1", "Hook desc")
 
         caps = load_registry(tmp_path)
 
         types = {c.type for c in caps}
-        assert types == {"skill", "tool", "agent"}, (
-            f"Expected 'skill', 'tool', and 'agent' types, got {types}"
+        assert types == {"skill", "tool", "agent", "hook"}, (
+            f"Expected 'skill', 'tool', 'agent', and 'hook' types, got {types}"
         )
 
 
@@ -326,12 +467,16 @@ def test_real_registry_loads_all_capabilities() -> None:
     skill_caps = [c for c in caps if c.type == "skill"]
     tool_caps = [c for c in caps if c.type == "tool"]
     agent_caps = [c for c in caps if c.type == "agent"]
+    hook_caps = [c for c in caps if c.type == "hook"]
 
     assert len(skill_caps) >= 1, "Registry should contain at least one skill"
     assert len(tool_caps) >= 1, "Registry should contain at least one tool"
     assert len(agent_caps) >= 1, "Registry should contain at least one agent"
+    assert len(hook_caps) >= 1, "Registry should contain at least one hook"
 
     for cap in caps:
         assert cap.name, "Every capability must have a name"
         assert cap.description, "Every capability must have a description"
-        assert cap.type in ("skill", "tool", "agent"), f"Unknown type: {cap.type}"
+        assert cap.type in ("skill", "tool", "agent", "hook"), (
+            f"Unknown type: {cap.type}"
+        )

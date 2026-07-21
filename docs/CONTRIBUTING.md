@@ -2,11 +2,12 @@
 
 This guide explains how to add new capabilities to the AWOS Recruitment registry.
 
-The registry contains three types of capabilities:
+The registry contains four types of capabilities:
 
 - **Skills** — best practices, code examples, and standards for a specific language, library, framework, or database
 - **MCP Definitions** — MCP server configurations ready to be inserted into `.mcp.json`
 - **Agents** — behavioral rules and constraints for specialized roles
+- **Hooks** — Claude Code lifecycle hooks (shell scripts) that run on events like `PreToolUse`, injected into `.claude/settings.json`
 
 **When to create a skill vs. an agent:**
 
@@ -30,13 +31,20 @@ registry/
 │           └── *.md
 ├── mcp/
 │   └── <server-name>.yaml        # One YAML file per MCP server
-└── agents/
-    └── <agent-name>.md           # One markdown file per agent
+├── agents/
+│   └── <agent-name>.md           # One markdown file per agent
+└── hooks/
+    └── <hook-name>/
+        ├── HOOK.md               # Required — front matter + injection docs
+        ├── <hook-name>.sh        # Required — executable entrypoint
+        └── scripts/              # Optional — helper files
+            └── *.py|*.js|*.ts
 ```
 
 - Each **skill** lives in its own subdirectory under `registry/skills/`. The directory must contain a `SKILL.md` file and may include additional reference files.
 - Each **MCP definition** is a single `.yaml` file directly under `registry/mcp/`.
 - Each **agent** is a single `.md` file directly under `registry/agents/`.
+- Each **hook** lives in its own subdirectory under `registry/hooks/`. The directory must contain a `HOOK.md` file and an executable entrypoint script named after the hook.
 
 ---
 
@@ -177,6 +185,114 @@ See `registry/agents/testing-expert.md` for a complete example.
 
 ---
 
+## Adding a Hook
+
+Create a directory under `registry/hooks/` containing a `HOOK.md` file and an executable entrypoint script named `<hook-name>.sh`:
+
+```
+registry/hooks/my-hook-name/
+├── HOOK.md               # Required — front matter + injection docs
+├── my-hook-name.sh       # Required — executable entrypoint
+└── scripts/              # Optional — helper files (.sh only)
+```
+
+`HOOK.md` starts with YAML front matter:
+
+```markdown
+---
+name: my-hook-name
+description: What this hook does and when it fires.
+hooks:
+  - event: PreToolUse
+    matcher: Edit|Write
+    timeout: 10
+---
+
+# My Hook
+
+What the hook does, why a team would want it, and manual injection
+instructions go here...
+```
+
+### Required Fields
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `name` | string | Kebab-case only (`a-z`, `0-9`, `-`). Max 64 characters. Must match the directory name. |
+| `description` | string | Non-empty. Describes what the hook does and when it fires — this is what the search index matches against. |
+| `hooks` | list | Non-empty list of hook entries (see below). |
+
+### Hook Entries
+
+Each entry in the `hooks` list has the following fields:
+
+| Field | Type | Required | Rules |
+|-------|------|----------|-------|
+| `event` | string | Yes | A documented Claude Code hook event (see `server/src/awos_recruitment_mcp/models/hook_metadata.py` for the authoritative list), e.g. `PreToolUse`, `PostToolUse`, `SessionStart`. |
+| `matcher` | string | No | Tool-name matcher (e.g. `Edit\|Write`). Omit for events that don't use matchers. |
+| `timeout` | integer | No | Timeout in seconds. Must be greater than 0. |
+
+**There is no `command` field.** The command injected into `.claude/settings.json` is always derived from the hook name: `$CLAUDE_PROJECT_DIR/.claude/hooks/<name>/<name>.sh`. This keeps validation trivial and injection fully deterministic — the entrypoint script *is* the command.
+
+**No other fields are allowed.** The validator rejects unknown front matter fields.
+
+### The Entrypoint Script
+
+Every hook must ship an executable script named `<hook-name>.sh` next to `HOOK.md`:
+
+- It **must carry the executable bit** (`chmod +x my-hook-name.sh`). Git records the file mode, so the bit survives commits, bundling, and installation. Validation fails on a missing or non-executable entrypoint.
+- Claude Code passes the event payload to the script on **stdin as JSON**. The script signals its decision via exit codes (e.g. exit `2` blocks a tool call on `PreToolUse`).
+- **Multi-event hooks** declare several entries in the `hooks` list but still ship a single entrypoint — branch on the `hook_event_name` field from the stdin JSON to handle each event.
+- Helper files go under `scripts/` — hooks allow only flat `.sh` files there (hooks are pure POSIX sh with zero runtime dependencies); anything else fails validation and is dropped from the install bundle.
+
+> **POSIX shell note:** v1 assumes a POSIX shell is available. Windows users need Git Bash or a similar environment to run hook entrypoints.
+
+### The Markdown Body
+
+The body below the front matter must be non-empty. It should document:
+
+- **What the hook does and why** — the behavior it enforces and the value for a team.
+- **Manual injection instructions** — the exact JSON fragment to merge into `.claude/settings.json`, as a fallback for users who don't use the CLI. For example:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook-name/my-hook-name.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`$CLAUDE_PROJECT_DIR` is a literal string that Claude Code expands at runtime — do not substitute it.
+
+The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this merge automatically: it installs the hook files into `.claude/hooks/<name>/` and deterministically merges the derived entries into `.claude/settings.json`, skipping entries that are already present.
+
+### Validation
+
+`just validate-registry` checks every hook for:
+
+- Valid front matter (`name`, `description`, non-empty `hooks` list with valid `event` values; unknown fields rejected)
+- `name` matching the directory name
+- Non-empty markdown body (the injection docs are mandatory content)
+- An existing, executable `<name>.sh` entrypoint
+- Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.sh` files under `scripts/` are allowed (README.md is registry-local documentation — it validates but is not part of the install bundle)
+
+### Example
+
+See `registry/hooks/docs-that-work-gate/` for a complete example.
+
+---
+
 ## Validating Your Changes
 
 Before submitting, run the registry validator:
@@ -190,8 +306,9 @@ This scans all entries under `registry/` and checks them against the schemas des
 ```
 OK    skills/my-skill/SKILL.md
 OK    mcp/my-server.yaml
+OK    hooks/my-hook/HOOK.md
 
-All 2 entries valid.
+All 3 entries valid.
 ```
 
 If there are errors:
@@ -227,10 +344,11 @@ The command exits with code `0` on success and `1` on any validation failure.
 
 Before submitting a new capability:
 
-- [ ] File is in the correct location (`registry/skills/<name>/SKILL.md`, `registry/mcp/<name>.yaml`, or `registry/agents/<name>.md`)
+- [ ] File is in the correct location (`registry/skills/<name>/SKILL.md`, `registry/mcp/<name>.yaml`, `registry/agents/<name>.md`, or `registry/hooks/<name>/HOOK.md`)
 - [ ] All required fields are present and non-empty
 - [ ] `name` is kebab-case, max 64 characters
-- [ ] No unknown fields in front matter (skills and agents use `extra="forbid"`)
+- [ ] No unknown fields in front matter (skills, agents, and hooks use `extra="forbid"`)
 - [ ] MCP `config` has exactly one server key with a valid `type`
 - [ ] Agent `skills` references only existing skills in `registry/skills/`
+- [ ] Hook ships an executable `<name>.sh` entrypoint (`chmod +x`) and documents manual injection in the `HOOK.md` body
 - [ ] `just validate-registry` passes with exit code 0

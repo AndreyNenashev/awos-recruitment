@@ -13,7 +13,7 @@ from awos_recruitment_mcp import search_index
 from awos_recruitment_mcp.server import config, mcp
 from awos_recruitment_mcp.telemetry import track_search
 
-VALID_TYPES = {"skill", "agent", "tool"}
+VALID_TYPES = {"skill", "agent", "tool", "hook"}
 
 
 @mcp.tool
@@ -22,7 +22,7 @@ async def search_capabilities(
     type: str | None = None,
     ctx: Context = None,  # type: ignore[assignment]
 ) -> list[dict] | str:
-    """Search the capability registry for skills, agents, and tools matching a query.
+    """Search the capability registry for skills, agents, tools, and hooks matching a query.
 
     Returns a ranked list of capabilities.  Each result includes a name,
     description, and similarity score (0--100).  Returns at most 10 results.
@@ -31,7 +31,8 @@ async def search_capabilities(
         query: Natural-language search query describing the capability
             you are looking for.
         type: Optional filter to restrict results to a specific capability
-            type.  Must be one of ``"skill"``, ``"agent"``, or ``"tool"``.
+            type.  Must be one of ``"skill"``, ``"agent"``, ``"tool"``, or
+            ``"hook"``.
     """
     # --- input validation ---------------------------------------------------
     if not query or not query.strip():

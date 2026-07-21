@@ -76,7 +76,7 @@ awos-recruitment/
 │   │   ├── registry.py      # Registry loader (scans and parses capabilities)
 │   │   ├── search_index.py  # ChromaDB search index (build + query)
 │   │   ├── telemetry.py     # PostHog usage telemetry (search + install events)
-│   │   ├── models/          # Pydantic models (capabilities, skills, MCP defs, agents)
+│   │   ├── models/          # Pydantic models (capabilities, skills, MCP defs, agents, hooks)
 │   │   ├── tools/           # MCP tool implementations
 │   │   └── validate/        # Registry validation CLI
 │   ├── tests/               # pytest test suite
@@ -84,13 +84,14 @@ awos-recruitment/
 ├── registry/            # Git-managed capability catalog
 │   ├── skills/              # Claude Code skill definitions
 │   ├── mcp/                 # MCP server definitions
-│   └── agents/              # Claude Code agent definitions
+│   ├── agents/              # Claude Code agent definitions
+│   └── hooks/               # Claude Code hook definitions
 ├── cli/                 # TypeScript npx package for capability installation
 │   ├── src/
 │   │   ├── index.ts         # Entry point with error boundary
 │   │   ├── cli.ts           # Argument parsing and subcommand routing
-│   │   ├── commands/        # skill, mcp, and agent install commands
-│   │   └── lib/             # download, json-merge, frontmatter, errors, types
+│   │   ├── commands/        # skill, mcp, agent, and hook install commands
+│   │   └── lib/             # download, json-merge, settings-merge, frontmatter, errors, types
 │   ├── package.json
 │   └── tsconfig.json
 ├── infra/               # Terraform infrastructure (AWS ECS, ALB, VPC)

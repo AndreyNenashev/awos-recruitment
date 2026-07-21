@@ -21,11 +21,15 @@ from awos_recruitment_mcp.telemetry import init_telemetry, shutdown_telemetry, t
 from awos_recruitment_mcp.registry import (
     load_registry,
     resolve_agent_paths,
+    resolve_hook_paths,
     resolve_mcp_paths,
     resolve_skill_paths,
 )
 from awos_recruitment_mcp.search_index import build_index
-from awos_recruitment_mcp.validate import _ALLOWED_SCRIPT_EXTENSIONS
+from awos_recruitment_mcp.validate import (
+    _ALLOWED_HOOK_SCRIPT_EXTENSIONS,
+    _ALLOWED_SCRIPT_EXTENSIONS,
+)
 
 config = Config.from_env()
 
@@ -53,8 +57,8 @@ mcp = FastMCP(
     version=config.version,
     instructions=(
         "This server provides AI coding assistants with a discovery engine "
-        "for skills, agents, and tools. Use the search_capabilities tool to "
-        "find capabilities matching a natural language query."
+        "for skills, agents, tools, and hooks. Use the search_capabilities "
+        "tool to find capabilities matching a natural language query."
     ),
     lifespan=lifespan,
 )
@@ -190,6 +194,72 @@ async def bundle_agents(request: Request) -> Response:
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for md_path in found_paths:
             tar.add(str(md_path), arcname=md_path.name)
+
+    return Response(content=buf.getvalue(), media_type="application/gzip")
+
+
+@mcp.custom_route("/bundle/hooks", methods=["POST"])
+async def bundle_hooks(request: Request) -> Response:
+    """Bundle one or more hooks into a tar.gz archive.
+
+    Expects a JSON body matching :class:`BundleRequest`.  Resolves each
+    requested hook name to its on-disk directory, then streams back a
+    gzip-compressed tar archive containing ``<name>/HOOK.md``, the
+    ``<name>/<name>.sh`` entrypoint, and any ``<name>/scripts/*`` files
+    filtered by :data:`_ALLOWED_HOOK_SCRIPT_EXTENSIONS` for each found hook.
+
+    On-disk file modes are preserved in the archive, so the entrypoint's
+    executable bit travels with the bundle.
+
+    Returns 400 with a JSON error body when the request fails validation.
+    """
+    try:
+        body = await request.json()
+        bundle_request = BundleRequest.model_validate(body)
+    except ValidationError as exc:
+        return JSONResponse(
+            {"error": "Validation failed", "detail": exc.errors()},
+            status_code=400,
+        )
+
+    unique_names = list(dict.fromkeys(bundle_request.names))
+    found_paths, _not_found = resolve_hook_paths(
+        unique_names, config.registry_path
+    )
+
+    # A hook without its entrypoint would install as a settings entry
+    # pointing at a script that doesn't exist — omit the whole directory so
+    # the CLI reports it not-found instead of "installed". Filtering once up
+    # front keeps telemetry honest too: a hook that ships nothing must not
+    # be counted as an install.
+    shippable = [d for d in found_paths if (d / f"{d.name}.sh").is_file()]
+
+    for hook_dir in shippable:
+        track_install(hook_dir.name, "hook")
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for hook_dir in shippable:
+            hook_name = hook_dir.name
+
+            hook_md = hook_dir / "HOOK.md"
+            if hook_md.is_file():
+                tar.add(str(hook_md), arcname=f"{hook_name}/HOOK.md")
+
+            entrypoint = hook_dir / f"{hook_name}.sh"
+            tar.add(str(entrypoint), arcname=f"{hook_name}/{hook_name}.sh")
+
+            scripts_dir = hook_dir / "scripts"
+            if scripts_dir.is_dir():
+                for sub_file in sorted(scripts_dir.iterdir()):
+                    if not sub_file.is_file() or sub_file.name.startswith("."):
+                        continue
+                    if sub_file.suffix not in _ALLOWED_HOOK_SCRIPT_EXTENSIONS:
+                        continue
+                    tar.add(
+                        str(sub_file),
+                        arcname=f"{hook_name}/scripts/{sub_file.name}",
+                    )
 
     return Response(content=buf.getvalue(), media_type="application/gzip")
 
