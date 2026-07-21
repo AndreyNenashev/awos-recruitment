@@ -31,7 +31,7 @@ Hooks differ from existing capability types in one important way: installation i
   - `name` (required): kebab-case identifier, 1–64 characters, must match the directory name.
   - `description` (required): non-empty string describing what the hook does and when it fires.
   - `hooks` (required): a non-empty list of hook entries, each with:
-    - `event` (required): a valid Claude Code hook event (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Notification`, `Stop`, `SubagentStop`, `PreCompact`, `SessionStart`, `SessionEnd`).
+    - `event` (required): a valid Claude Code hook event — any name from the full documented event list (e.g., `PreToolUse`, `PostToolUse`, `SessionStart`; 30 events as of the 2026-07-20 sync). The authoritative allowlist lives in `models/hook_metadata.py` (`HookEvent`), kept in sync with the [Claude Code hooks reference](https://code.claude.com/docs/en/hooks).
     - `matcher` (optional): tool-name matcher string (e.g., `Edit|Write`).
     - `timeout` (optional): per-command timeout in seconds.
 - The `HOOK.md` body must document:
@@ -45,7 +45,7 @@ Hooks differ from existing capability types in one important way: installation i
   - [x] A hook directory placed in `registry/hooks/` with a valid `HOOK.md` is loaded by the registry loader with `type="hook"`.
   - [x] Hooks appear in semantic search results when a relevant natural language query is submitted (e.g., "keep documentation updated before committing" returns `docs-that-work-gate`).
   - [x] Filtering by `type="hook"` returns only hook results.
-  - [x] Hooks without a description are silently skipped during loading (consistent with skills).
+  - [x] Hooks with missing or invalid metadata (including a missing description) are skipped during loading with a logged warning — hooks are executable configuration, so a skipped guardrail must leave a signal (stricter than the silent skip used for skills).
 
 ### 2.2. Hook Metadata Validation
 
