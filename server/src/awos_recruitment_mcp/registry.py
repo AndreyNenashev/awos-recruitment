@@ -267,8 +267,12 @@ def _load_hooks(root: Path) -> list[RegistryCapability]:
         # Hooks are executable configuration — unlike skills/agents, the
         # frontmatter is validated in full here so a malformed hook is
         # absent from the catalog instead of breaking at install time.
+        # metadata goes in as-is: model_validate rejects a non-dict root
+        # (top-level YAML list/scalar) with a ValidationError we catch,
+        # whereas dict(post.metadata) would raise TypeError and crash the
+        # whole registry load on one malformed file.
         try:
-            meta = HookMetadata.model_validate(dict(post.metadata))
+            meta = HookMetadata.model_validate(post.metadata)
         except PydanticValidationError as exc:
             logger.warning("Skipping hook %s: invalid metadata: %s", hook_md, exc)
             continue

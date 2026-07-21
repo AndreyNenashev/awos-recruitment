@@ -326,6 +326,21 @@ class TestHookMetadataValidation:
 
         assert not [c for c in capabilities if c.type == "hook"]
 
+    def test_load_hooks_skips_non_dict_frontmatter(self, tmp_path: Path) -> None:
+        """A HOOK.md whose frontmatter root is a YAML list must be skipped
+        with a warning, not crash the whole registry load."""
+        hook_dir = tmp_path / "hooks" / "list-root"
+        hook_dir.mkdir(parents=True)
+        (hook_dir / "HOOK.md").write_text(
+            "---\n- just\n- a\n- list\n---\n\n# Body\n"
+        )
+        _write_hook(tmp_path, "good-hook")
+
+        capabilities = load_registry(tmp_path)
+
+        names = {c.name for c in capabilities if c.type == "hook"}
+        assert names == {"good-hook"}
+
 
 # ---------------------------------------------------------------------------
 # Type inference
