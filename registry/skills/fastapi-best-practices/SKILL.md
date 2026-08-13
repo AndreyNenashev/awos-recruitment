@@ -42,6 +42,8 @@ See `references/async-patterns.md` for decision matrix, threadpool caveats, and 
 - Split `BaseSettings` by domain — separate settings classes, not one global class; classes live wherever the project's structure keeps config
 - Beware: `ValueError` in validators becomes a 422 response with the full message
 - Response models are created twice — once by you, once by FastAPI for validation
+- `response_model` is always a Pydantic class, never a SQLAlchemy model — a new column must not be able to reach a client by default
+- Never share a base model across request and response — duplicate the fields; a shared base is how `X | None`-everything god-schemas start
 
 See `references/pydantic-patterns.md` for base model template, schema design, and ORM mode.
 

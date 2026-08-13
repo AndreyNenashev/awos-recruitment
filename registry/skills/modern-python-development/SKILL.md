@@ -153,9 +153,10 @@ project-name/
 ├── src/
 │   └── package_name/
 │       ├── __init__.py
-│       ├── core/
-│       ├── models/
-│       └── utils/
+│       ├── config.py
+│       ├── errors.py
+│       ├── users/          # a domain, not a technical role
+│       └── orders/
 ├── tests/
 │   ├── conftest.py
 │   ├── unit/
