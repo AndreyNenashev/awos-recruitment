@@ -137,6 +137,8 @@ src/package_name/
 
 Domain-based organization keeps related code together, reducing cross-directory navigation and making dependencies between features explicit.
 
+`shared/` is a last resort, not a default destination: before adding one, check whether the project already has a home for cross-domain code (a `domain/`, `core/`, or similar package) and extend that home instead — two parallel shared-code locations is how grab-bags start.
+
 ### When flat is acceptable
 
 For small packages (< 10 modules), a flat structure is fine:

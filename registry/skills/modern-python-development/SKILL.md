@@ -75,7 +75,7 @@ Key rules:
 - Use built-in generics: `list[str]`, `dict[str, int]`, `tuple[int, ...]`, `set[str]`
 - Use `X | None` instead of `Optional[X]`
 - Use `type` statement for aliases, not bare assignment
-- Prefer `Protocol` over `ABC` when only structural typing is needed
+- Prefer `Protocol` over `ABC` when only structural typing is needed; define an interface only when a second real implementation exists
 - Use `@override` decorator (3.12+) when overriding base class methods
 - Use `Self` for methods returning the instance type
 

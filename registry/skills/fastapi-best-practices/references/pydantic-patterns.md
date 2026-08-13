@@ -19,21 +19,21 @@ class UserCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=128)
     username: str = Field(min_length=1, max_length=128, pattern="^[A-Za-z0-9-_]+$")
     email: EmailStr
-    age: int = Field(ge=18, default=None)
+    age: int | None = Field(default=None, ge=18)
     favorite_band: MusicBand | None = None
     website: AnyUrl | None = None
 ```
 
 ## Custom Base Model
 
-Create a project-wide base model for consistent serialization:
+Create a project-wide base model, plus annotated types for consistent serialization. `json_encoders` is deprecated in Pydantic v2 — custom serialization lives in annotated serializers (`PlainSerializer`) or `@field_serializer`, not in `model_config`:
 
 ```python
 from datetime import datetime
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer
 
 
 def datetime_to_gmt_str(dt: datetime) -> str:
@@ -42,22 +42,33 @@ def datetime_to_gmt_str(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+# Declare once; every schema field annotated with it serializes consistently
+UTCDateTime = Annotated[datetime, PlainSerializer(datetime_to_gmt_str, when_used="json")]
+
+
 class CustomModel(BaseModel):
     model_config = ConfigDict(
-        json_encoders={datetime: datetime_to_gmt_str},
-        populate_by_name=True,
+        validate_by_name=True,
+        validate_by_alias=True,
     )
+```
 
-    def serializable_dict(self, **kwargs):
-        """Return a dict with only serializable fields."""
-        default_dict = self.model_dump()
-        return jsonable_encoder(default_dict)
+```python
+class PostResponse(CustomModel):
+    id: UUID4
+    created_at: UTCDateTime  # serialized via datetime_to_gmt_str
 ```
 
 Benefits:
-- Consistent datetime formatting across all responses
-- Single place to add shared serialization logic
+
+- Consistent datetime formatting across all responses via one annotated type
+- Single place (`CustomModel`) to add shared config and behavior
 - All domain schemas inherit shared behavior
+
+Notes:
+
+- `populate_by_name=True` is superseded in Pydantic 2.11+ by `validate_by_name=True` + `validate_by_alias=True` (the pair is the exact equivalent; `populate_by_name` is slated for deprecation in v3).
+- No `serializable_dict` helper is needed: `model_dump(mode="json")` returns a JSON-compatible dict natively — `jsonable_encoder` over `model_dump()` is a v1-era workaround.
 
 ## Split BaseSettings by Domain
 
@@ -98,6 +109,8 @@ class Config(BaseSettings):
 settings = Config()
 ```
 
+The unit of the split is the **class**, not the file: each domain gets its own `BaseSettings` class, initialized independently. Where those classes live follows the project's structure conventions — the paths above show a per-domain-module layout; a project that keeps one top-level `config.py` (e.g. the vertical-slice layout of the companion `fastapi-vertical-slice-architecture` skill) holds `AuthConfig` and `Config` as two classes in that single file, and the split survives intact.
+
 ## Response Serialization Gotcha
 
 FastAPI creates your Pydantic response model **twice** — once when you return it, and once internally for validation:
@@ -114,7 +127,7 @@ async def root():
     return ProfileResponse()
 ```
 
-The flow: your object → `jsonable_encoder` → dict → validate against `response_model` → JSON.
+The flow: your object → validated into a second `response_model` instance → serialized (`model_dump`) → JSON.
 
 Be aware of this when using expensive validators or side effects in response models.
 
@@ -170,7 +183,7 @@ class PostCreate(PostBase):
     pass
 
 class PostUpdate(BaseModel):
-    title: str | None = Field(None, min_length=1, max_length=200)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
     content: str | None = None
 
 class PostResponse(PostBase):
@@ -178,7 +191,9 @@ class PostResponse(PostBase):
     created_at: datetime
 ```
 
-### Config for ORM mode
+### `from_attributes` for ORM objects
+
+Read attributes off SQLAlchemy (or any) objects — the v2 rename of v1's `orm_mode`:
 
 ```python
 class PostResponse(BaseModel):
