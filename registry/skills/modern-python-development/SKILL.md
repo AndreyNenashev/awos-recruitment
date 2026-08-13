@@ -1,7 +1,13 @@
 ---
 name: modern-python-development
-description: This skill should be used when the user asks to "write Python code", "create a Python module", "set up a Python project", "review Python code", "refactor Python", "add type hints", "fix Python style", or when generating any Python source code. Provides modern Python 3.12+ best practices covering syntax, type hints, error handling, project structure, and idiomatic patterns. Does not cover any specific library or framework.
-version: 0.1.0
+description: >-
+  Use when writing, reviewing, or refactoring Python source code — naming,
+  type hints, error handling, dataclasses, project layout, or idiomatic
+  patterns. Targets Python 3.12+; framework- and library-agnostic. Triggers
+  include adding type hints, fixing Python style, setting up a Python project
+  or module, and modernizing legacy syntax (Optional/Union, os.path,
+  percent or .format strings).
+version: 0.2.0
 ---
 
 # Modern Python Development (3.12+)
